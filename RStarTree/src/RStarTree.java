@@ -9,6 +9,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import java.io.*;
 import java.nio.ByteBuffer;
+import java.nio.file.Files;
 import java.util.Scanner; // Import the Scanner class to read text files
 
 public class RStarTree
@@ -27,7 +28,7 @@ public class RStarTree
         return buffer.array();
     }
 
-    public static void main(String[] args) throws ParserConfigurationException, IOException, SAXException
+    public static void main(String[] args) throws ParserConfigurationException, SAXException
     {
 
         //open file
@@ -130,6 +131,31 @@ public class RStarTree
 
         catch (IOException e)
         {
+            System.out.println("An error occurred.");
+            e.printStackTrace();
+        }
+
+        try {
+            File file = new File("datafile.txt");
+            byte[] bytes = Files.readAllBytes(file.toPath());
+
+            byte[] NodeIdArray = new byte[8];
+            byte[] LatArray = new byte[8];
+            byte[] LonArray = new byte[8];
+
+            System.arraycopy(bytes, 0, NodeIdArray, 0, 8);
+            System.arraycopy(bytes, 8, LatArray, 0, 8);
+            System.arraycopy(bytes, 16, LonArray, 0, 8);
+
+            long tempNodeId = ByteBuffer.wrap(NodeIdArray).getLong();
+            double tempLat = ByteBuffer.wrap(LatArray).getDouble();
+            double tempLon = ByteBuffer.wrap(LonArray).getDouble();
+
+            System.out.println("Node id: " + tempNodeId);
+            System.out.println("LAT: " + tempLat);
+            System.out.println("LON: " + tempLon);
+
+        } catch (IOException e) {
             System.out.println("An error occurred.");
             e.printStackTrace();
         }
