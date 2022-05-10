@@ -18,8 +18,8 @@ public class RStarTree
 {
     private static long noOfNodes;
     private static long noOfBlocks;
-    private static char delimiter = '$';
-    private static char blockSeperator = '#';
+    private final static char delimiter = '$';
+    private final static char blockSeperator = '#';
 
 
 
