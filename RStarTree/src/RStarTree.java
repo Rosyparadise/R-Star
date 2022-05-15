@@ -49,7 +49,7 @@ public class RStarTree
         //open file
         try
         {
-            File datafile = new File("datafile.txt");
+            File datafile = new File("datafile.dat");
             if (datafile.createNewFile()) {
                 System.out.println("File created: " + datafile.getName());
             }
@@ -63,7 +63,7 @@ public class RStarTree
         try
         {
             //stream to write bytes to text file
-            FileOutputStream  dataWriter = new FileOutputStream("datafile.txt");
+            FileOutputStream  dataWriter = new FileOutputStream("datafile.dat");
 
             //link xml parser to .osm file
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -153,7 +153,7 @@ public class RStarTree
 
 
             //first block
-            RandomAccessFile datafile = new RandomAccessFile("datafile.txt", "rw");
+            RandomAccessFile datafile = new RandomAccessFile("datafile.dat", "rw");
             datafile.seek(0);
             datafile.write(longToBytes(noOfBlocks));
             datafile.write(longToBytes(noOfNodes));
@@ -168,7 +168,7 @@ public class RStarTree
 
 
         try {
-            File file = new File("datafile.txt");
+            File file = new File("datafile.dat");
             //byte arrays to save the byte representation of the variables
             byte[] bytes = Files.readAllBytes(file.toPath());
             byte[] nodesArray = new byte[8],BlocksArray = new byte[8];
