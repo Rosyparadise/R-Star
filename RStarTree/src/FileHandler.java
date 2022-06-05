@@ -10,18 +10,21 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.ArrayList;
 
 public class FileHandler {
     private static int noOfDatafileBlocks = 0;
     private static int noOfIndexfileBlocks = 0;
+    private static int leafLevel = -1;
     private static final String OsmfilePath = "map.osm";
     private static final String DatafilePath = "datafile.dat";
-    private static final String IndexfilePath = "";
+    private static final String IndexfilePath = "indexfile.dat";
     private static int dimensions; //2 for testings
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
     private static final int blockSize = 32768; //32KB (KB=1024B)
     private static long noOfNodes;
+    private static ArrayList<Record> records = new ArrayList<>();
 
     private static byte[] longToBytes(long x) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
@@ -47,7 +50,7 @@ public class FileHandler {
         return buffer.array();
     }
 
-    static void createIndexFile(int dimensions){
+    static void createDataFile(int dimensions){
         if (dimensions >= 2){
             FileHandler.dimensions = dimensions;
             FileHandler.createFirstDatafileBlock();
@@ -303,6 +306,316 @@ public class FileHandler {
         } catch (Exception e){
             e.printStackTrace();
         }
+    }
 
+    static void createIndexFile(){
+        FileHandler.createFirstIndexfileBlock();
+        FileHandler.insertIndexfileNodes();
+    }
+
+    private static void createFirstIndexfileBlock(){
+        try {
+            noOfIndexfileBlocks++;
+
+            byte[] blocksizeArray = intToBytes(blockSize);
+            byte[] noOfBlocksArray = intToBytes(noOfIndexfileBlocks);
+            byte[] leafLevelArray = intToBytes(leafLevel);
+            byte[] blockData = new byte[blockSize];
+            //bytecounter for blockData
+            int bytecounter = 0;
+
+            // Copies blocksizeArray in blockData starting from bytecounter(0) then increments by
+            // blocksizeArray size. Copies noOfBlocksArray starting from bytecounter(dimensionArray.length) then increments
+            // by noOfBlocksArray size etc.
+            System.arraycopy(blocksizeArray, 0, blockData, bytecounter, blocksizeArray.length);
+            bytecounter += blocksizeArray.length;
+            System.arraycopy(noOfBlocksArray, 0, blockData, bytecounter, noOfBlocksArray.length);
+            bytecounter += noOfBlocksArray.length;
+            System.arraycopy(leafLevelArray, 0, blockData, bytecounter, leafLevelArray.length);
+            bytecounter += leafLevelArray.length;
+
+            RandomAccessFile file = new RandomAccessFile(IndexfilePath, "rw");
+            file.write(blockData);
+            file.close();
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    static void readFirstIndexfileBlock(){
+        try{
+            File file = new File(IndexfilePath);
+            //byte arrays to save serialized data from indexfile inorder to deserialize them afterwards and print them
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] blocksizeArray = new byte[4];
+            byte[] noOfBlocksArray = new byte[4];
+            byte[] leafLevelArray = new byte[4];
+
+            System.arraycopy(bytes, 0, blocksizeArray, 0, blocksizeArray.length);
+            System.arraycopy(bytes, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
+            System.arraycopy(bytes, 8, leafLevelArray, 0, leafLevelArray.length);
+
+
+            int tempBlockSize = ByteBuffer.wrap(blocksizeArray).getInt();
+            int tempnoOfBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
+            int tempLeafLevel = ByteBuffer.wrap(leafLevelArray).getInt();
+
+            System.out.println("Block size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks + "\nLeaf level: " + tempLeafLevel);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+    private static void insertIndexfileNodes(){
+        // read datafile and add every node in the arraylist of Records. (Read is mainly copied by readDatafile()
+        // function, so it will get cleaned up at some point and its just a temp solution)
+        try {
+            File file = new File(DatafilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            // byte arrays to store the serialized data from datafile
+            byte[] delimiterArray = new byte[2];
+            byte[] blockSeperatorArray = new byte[2];
+            byte[] NodeIdArray = new byte[8];
+            byte[] LatArray = new byte[8];
+            byte[] LonArray = new byte[8];
+
+            long tempNodeId;
+            double tempLat,tempLon;
+            String tempName="";
+            char newlinestr;
+
+            // save all nodes from datafile in the records arraylist
+            for (int i=1; i < noOfDatafileBlocks; i++){
+                byte[] dataBlock = new byte[blockSize];
+                System.arraycopy(bytes, i * blockSize, dataBlock, 0, blockSize);
+
+                int bytecounter = 0;
+                boolean flag = true;
+
+                while (flag){
+                    System.arraycopy(dataBlock, bytecounter, NodeIdArray, 0, NodeIdArray.length);
+                    System.arraycopy(dataBlock, bytecounter+8, LatArray, 0, LatArray.length);
+                    System.arraycopy(dataBlock, bytecounter+16, LonArray, 0, LonArray.length);
+                    System.arraycopy(dataBlock, bytecounter+24, delimiterArray,0, delimiterArray.length);
+
+                    tempNodeId = ByteBuffer.wrap(NodeIdArray).getLong();
+                    tempLat = ByteBuffer.wrap(LatArray).getDouble();
+                    tempLon = ByteBuffer.wrap(LonArray).getDouble();
+                    newlinestr = ByteBuffer.wrap(delimiterArray).getChar();
+                    int tempcounter=0;
+
+                    while (newlinestr!=delimiter)
+                    {
+                        tempcounter+=1;
+                        System.arraycopy(dataBlock, bytecounter+24+tempcounter, delimiterArray,0, delimiterArray.length);
+                        newlinestr = ByteBuffer.wrap(delimiterArray).getChar();
+                    }
+
+                    // new record and addition to the arraylist
+                    Record record = new Record(tempLat, tempLon, i, bytecounter, records.size());
+                    records.add(record);
+
+                    if (tempcounter!=0) {
+                        bytecounter+=26+tempcounter;
+                    } else {
+                        bytecounter+=26;
+                    }
+
+                    System.arraycopy(dataBlock, bytecounter, blockSeperatorArray, 0, 2);
+                    if (ByteBuffer.wrap(blockSeperatorArray).getChar()==blockSeperator) {
+                        flag = false;
+                    }
+                }
+            }
+
+            // write second block of indexfile (first on the r* tree) with the level and the number of nodes in that
+            // block (0 and 0 respectively because its leaf level and its empty)
+            noOfIndexfileBlocks++;
+            leafLevel++;
+            RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
+
+            indexfile.seek(4);
+            indexfile.write(intToBytes(noOfIndexfileBlocks));
+            indexfile.seek(8);
+            indexfile.write(intToBytes(leafLevel));
+
+            // write metadata, level and number of nodes/blocks
+            byte[] block = new byte[blockSize];
+            System.arraycopy(intToBytes(leafLevel), 0, block, 0, Integer.BYTES);
+            System.arraycopy(intToBytes(0), 0, block, Integer.BYTES, Integer.BYTES);
+
+            indexfile.seek(blockSize);
+            indexfile.write(block);
+
+            indexfile.close();
+
+            // iterate the arraylist of Records and insert each node to the r* tree using the Insert method
+            int counter = 0;
+            for (Record record : records) {
+                FileHandler.Insert(leafLevel, record);
+                counter++;
+                if (counter == 20){
+                    break;
+                }
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private static void Insert(int leafLevel, Record record){
+        // call ChooseSubtree to find the best block to save the node and save it to blockId
+        int blockId = FileHandler.ChooseSubtree(leafLevel, record, 1);
+        try {
+            // read all indexfile
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] block = new byte[blockSize];
+            // copy only the block that we need for the Insert based on blockId
+            System.arraycopy(bytes, blockId * blockSize, block, 0, blockSize);
+
+            // get the current number of nodes inserted in the block
+            byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+
+            // check if it can be added
+            if (tempCurrentNoOfEntries < FileHandler.calculateMaxBlockNodes()){
+                RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
+                // calculate the byte address which the node info will be written in the indexfile.
+                // So, block location (blockId * blockSize), metadata size (2 * Integer.BYTES), currently added nodes
+                // (tempCurrentNoOfEntries * (2 * Double.BYTES + Integer.BYTES)
+                int ByteToWrite = 2 * Integer.BYTES + tempCurrentNoOfEntries * (2 * Double.BYTES + Integer.BYTES) + blockId * blockSize;
+                byte[] datablock = new byte[2 * Double.BYTES + Integer.BYTES];
+
+                System.arraycopy(doubleToBytes(record.getLAT()), 0, datablock, 0, Double.BYTES);
+                System.arraycopy(doubleToBytes(record.getLON()), 0, datablock, Double.BYTES, Double.BYTES);
+                System.arraycopy(intToBytes(record.getId()), 0, datablock, 2 * Double.BYTES, Integer.BYTES);
+
+                indexfile.seek(ByteToWrite);
+                indexfile.write(datablock);
+
+                tempCurrentNoOfEntries++;
+                indexfile.seek((long) blockId * blockSize + Integer.BYTES);
+                indexfile.write(intToBytes(tempCurrentNoOfEntries));
+
+                indexfile.close();
+            } else if (tempCurrentNoOfEntries == FileHandler.calculateMaxBlockNodes()){
+                // second if bracket I2
+                // overflowtreament
+            }
+
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private static int ChooseSubtree(int leafLevel, Record record, int currentBlock){
+        try {
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] dataBlock = new byte[blockSize];
+            System.arraycopy(bytes, currentBlock * blockSize, dataBlock, 0, blockSize);
+
+            byte[] level = new byte[Integer.BYTES];
+            byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            System.arraycopy(dataBlock, 0, level, 0, Integer.BYTES);
+            System.arraycopy(dataBlock, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+
+            int tempLevel = ByteBuffer.wrap(level).getInt();
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+
+            // first if bracket in CS2
+            if (tempLevel == leafLevel){
+                return currentBlock;
+            } else if (tempLevel + 1 == leafLevel){
+                // first if bracket in the else bracket in CS2
+                // change currentblock so that the function works recursively
+            } else {
+                // second if bracket in the else bracket in CS2
+                // change currentblock so that the function works recursively
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+        return ChooseSubtree(leafLevel, record, currentBlock);
+    }
+
+    public static void readIndexFile(){
+        try {
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            // for each block in index file other than the metadata block
+            for (int i = 1; i < noOfIndexfileBlocks; i++){
+                byte[] block = new byte[blockSize];
+                System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
+
+                // read the metadata
+                byte[] level = new byte[Integer.BYTES];
+                byte[] currentNoOfEntries = new byte[Integer.BYTES];
+                System.arraycopy(block, 0, level, 0, Integer.BYTES);
+                System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+
+                int tempLevel = ByteBuffer.wrap(level).getInt();
+                int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+
+                // write custom output for leaf level (needs one for rectangle as well ++)
+                if (tempLevel == leafLevel){
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + leafLevel + "\nRecords: ");
+
+                    byte[] LATarray = new byte[Double.BYTES];
+                    byte[] LONarray = new byte[Double.BYTES];
+                    byte[] RecordIdArray = new byte[Integer.BYTES];
+
+                    int bytecounter = 2 * Integer.BYTES;
+                    for (int j = 0; j < tempCurrentNoOfEntries; j++){
+                        System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+                        System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
+                        System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
+                        bytecounter += 2 * Double.BYTES + Integer.BYTES;
+
+                        double LAT = ByteBuffer.wrap(LATarray).getDouble();
+                        double LON = ByteBuffer.wrap(LONarray).getDouble();
+                        int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
+
+                        System.out.println("LAT: " + LAT + ", LON: " + LON + ", Datafile block: " +
+                                records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
+                                records.get(recordId).getRecordLocation().getSlot());
+                    }
+                }
+            }
+        } catch (Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    public static int calculateMaxBlockRectangles(){
+        // Save in metadataSize the size of the number of rectangles (Integer) plus level (Integer)
+        int metadataSize = 2 * Integer.BYTES;
+
+        // Increment rectangleInfoSize by the size of the LAT (double) and LON (double) for each dimension plus the
+        // childpointer (Integer)
+        int rectangleInfoSize = 2 * dimensions * Double.BYTES + Integer.BYTES;
+
+        // Return the number of rectangles that a block can have, which is total block size minus the size of metadata
+        // minus the left childpointer of the first rectangle (the first rectangle is the only one with two childpointers)
+        // and all mod with rectangleInfoSize
+        System.out.println(blockSize + " " + metadataSize + " " + Integer.BYTES + " " + rectangleInfoSize);
+        return (blockSize - metadataSize - Integer.BYTES) / rectangleInfoSize;
+    }
+
+    public static int calculateMaxBlockNodes(){
+        // Save in metadataSize the size of the number of nodes (Integer) plus level (Integer)
+        int metadataSize = 2 * Integer.BYTES;
+
+        // Increment nodeInfoSize by the size of the LAT (double) and LON (double) of the node plus the record id
+        // (Integer) of the node in the record arraylist, that can be used to get the location (block, byte) of the node
+        // in datafile.dat
+        int nodeInfoSize = 2 * Double.BYTES + Integer.BYTES;
+
+        // Return the number of rectangles that a block can have, which is total block size minus the size of metadata
+        // minus the left childpointer of the first rectangle (the first rectangle is the only one with two childpointers)
+        // and all mod with rectangleInfoSize
+        return (blockSize - metadataSize - Integer.BYTES) / nodeInfoSize;
     }
 }
