@@ -1,3 +1,6 @@
+import java.util.ArrayList;
+import java.util.Comparator;
+
 public class Record {
     private double LAT;
     private double LON;
@@ -10,6 +13,14 @@ public class Record {
         recordLocation = new RecordLocation(block, slot);
         this.id = id;
     }
+    public Record(double LAT, double LON, int id)
+    {
+        this.LAT = LAT;
+        this.LON = LON;
+        this.id = id;
+
+    }
+
 
     public RecordLocation getRecordLocation(){
         return recordLocation;
@@ -26,4 +37,34 @@ public class Record {
     public int getId(){
         return id;
     }
+
+
+    public static void tempSort(ArrayList<Record> a, int b)
+    {
+        for (int i = 0; i < a.size(); i++)
+        {
+            for (int j = a.size() - 1; j > i; j--)
+            {
+                if (b==0)
+                {
+                    if (a.get(i).getLAT() > a.get(j).getLAT()) {
+                        Record tmp = a.get(i);
+                        a.set(i, a.get(j));
+                        a.set(j, tmp);
+                    }
+                }
+                else
+                {
+                    if (a.get(i).getLON() > a.get(j).getLON()) {
+                        Record tmp = a.get(i);
+                        a.set(i, a.get(j));
+                        a.set(j, tmp);
+                    }
+                }
+            }
+        }
+    }
+
+
+
 }

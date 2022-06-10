@@ -6,25 +6,40 @@ import org.w3c.dom.NodeList;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.Arrays;
 
 public class FileHandler {
+    private static int root=-1;
     private static int noOfDatafileBlocks = 0;
     private static int noOfIndexfileBlocks = 0;
     private static int leafLevel = -1;
     private static final String OsmfilePath = "map.osm";
     private static final String DatafilePath = "datafile.dat";
     private static final String IndexfilePath = "indexfile.dat";
-    private static int dimensions; //2 for testings
+    private static int dimensions; //2 for testing
+    private static double[][] rootMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
     private static final int blockSize = 32768; //32KB (KB=1024B)
     private static long noOfNodes;
     private static ArrayList<Record> records = new ArrayList<>();
+
+
+    private static int overflowCounter=0;
+    private static int overflowLevel=-1;
+    private static final double m=0.4;
+
+
+
+
+
 
     private static byte[] longToBytes(long x) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
@@ -309,14 +324,13 @@ public class FileHandler {
     }
 
     static void createIndexFile(){
+
         FileHandler.createFirstIndexfileBlock();
         FileHandler.insertIndexfileNodes();
     }
 
     private static void createFirstIndexfileBlock(){
         try {
-            noOfIndexfileBlocks++;
-
             byte[] blocksizeArray = intToBytes(blockSize);
             byte[] noOfBlocksArray = intToBytes(noOfIndexfileBlocks);
             byte[] leafLevelArray = intToBytes(leafLevel);
@@ -335,8 +349,12 @@ public class FileHandler {
             bytecounter += leafLevelArray.length;
 
             RandomAccessFile file = new RandomAccessFile(IndexfilePath, "rw");
+
             file.write(blockData);
+            System.out.println("file length= " + file.length());
+
             file.close();
+
         } catch (Exception e){
             e.printStackTrace();
         }
@@ -411,7 +429,7 @@ public class FileHandler {
                     }
 
                     // new record and addition to the arraylist
-                    Record record = new Record(tempLat, tempLon, i, bytecounter, records.size());
+                    Record record = new Record(tempLat, tempLon, i, bytecounter, records.size()); //id?
                     records.add(record);
 
                     if (tempcounter!=0) {
@@ -429,6 +447,7 @@ public class FileHandler {
 
             // write second block of indexfile (first on the r* tree) with the level and the number of nodes in that
             // block (0 and 0 respectively because its leaf level and its empty)
+            /*
             noOfIndexfileBlocks++;
             leafLevel++;
             RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
@@ -437,6 +456,7 @@ public class FileHandler {
             indexfile.write(intToBytes(noOfIndexfileBlocks));
             indexfile.seek(8);
             indexfile.write(intToBytes(leafLevel));
+
 
             // write metadata, level and number of nodes/blocks
             byte[] block = new byte[blockSize];
@@ -448,12 +468,15 @@ public class FileHandler {
 
             indexfile.close();
 
+             */
+
             // iterate the arraylist of Records and insert each node to the r* tree using the Insert method
             int counter = 0;
             for (Record record : records) {
                 FileHandler.Insert(leafLevel, record);
                 counter++;
-                if (counter == 20){
+                if (counter == 1639){
+                    File file2 = new File(IndexfilePath);
                     break;
                 }
             }
@@ -462,9 +485,242 @@ public class FileHandler {
         }
     }
 
+    private static void overflowTreatment(int treeLevel,int blockid,Record troublemaker)
+    {
+        if (treeLevel!=0 && overflowCounter==0)
+        {
+            System.out.println("print this i guess");
+            if (overflowLevel==treeLevel)
+            {
+                //reinsert overflowcounter = 0 and level = -1
+            }
+            else
+            {
+                overflowCounter=0;
+                overflowLevel=treeLevel;
+            }
+
+            //do smth
+        }
+        else
+        {
+            split(blockid,troublemaker);
+        }
+    }
+
+    private static void split(int blockId,Record troublemaker)
+    {
+
+        try {
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] block = new byte[blockSize];
+            System.arraycopy(bytes, blockId * blockSize, block, 0, blockSize);
+            byte[] noOfBlocksArray = new byte[4];
+            System.arraycopy(block, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(noOfBlocksArray).getInt();
+            ArrayList<Record> tempRecords = new ArrayList<>();
+            int bytecounter=8;
+            byte[] LATarray = new byte[Double.BYTES];
+            byte[] LONarray = new byte[Double.BYTES];
+            byte[] RecordIdArray = new byte[Integer.BYTES];
+
+            System.out.println(tempCurrentNoOfEntries);
+            for (int j=0;j<tempCurrentNoOfEntries;j++)
+            {
+                System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+                System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
+                System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
+                bytecounter += 2 * Double.BYTES + Integer.BYTES;
+
+                tempRecords.add(new Record(ByteBuffer.wrap(LATarray).getDouble(),ByteBuffer.wrap(LONarray).getDouble(),ByteBuffer.wrap(RecordIdArray).getInt()));
+                double LAT = ByteBuffer.wrap(LATarray).getDouble();
+                double LON = ByteBuffer.wrap(LONarray).getDouble();
+                int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
+
+               // System.out.println("LAT: " + tempRecords.get(j).getLAT() + ", LON: " + tempRecords.get(j).getLON());
+
+            }
+            tempRecords.add(troublemaker);
+            ArrayList<Record> recordsDup = new ArrayList<>();
+            recordsDup.addAll(tempRecords);
+            ArrayList<Record> first = new ArrayList<>();
+            ArrayList<Record> second = new ArrayList<>();
+
+
+            for (int i=0;i<dimensions;i++)
+            {
+                if (i==0)
+                {
+                    Record.tempSort(recordsDup,0);
+                    chooseSplitAxis(recordsDup);
+                }
+                else
+                {
+                    Record.tempSort(recordsDup,1);
+                    chooseSplitAxis(recordsDup);
+                }
+            }
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+
+
+
+    }
+
+    private static void calculateMBRpointbypoint(double[][] firstMBR, Record a,boolean isFirstEntry)
+    {
+
+
+        if (isFirstEntry)
+        {
+            firstMBR[0][0]=a.getLAT();firstMBR[0][1]=a.getLON();
+            firstMBR[1][0]=a.getLAT();firstMBR[1][1]=a.getLON();
+            firstMBR[2][0]=a.getLAT();firstMBR[2][1]=a.getLON();
+            firstMBR[3][0]=a.getLAT();firstMBR[3][1]=a.getLON();
+        }
+        else
+        {
+            if (a.getLAT()<firstMBR[0][0])
+            {
+                firstMBR[0][0]=a.getLAT();
+                firstMBR[2][0]=a.getLAT();
+            }
+            if (a.getLAT()>firstMBR[1][0])
+            {
+                firstMBR[1][0]=a.getLAT();
+                firstMBR[3][0]=a.getLAT();
+            }
+            if (a.getLON()<firstMBR[0][1])
+            {
+                firstMBR[0][1]=a.getLON();
+                firstMBR[1][1]=a.getLON();
+            }
+            if (a.getLON()>firstMBR[2][1])
+            {
+                firstMBR[2][1]=a.getLON();
+                firstMBR[3][1]=a.getLON();
+            }
+        }
+    }
+
+
+    private static double[][] calculateMBR(ArrayList<Record> firstTemp)
+    {
+        double[] tempFirstPoint1 = new double[2];
+        double[] tempSecondPoint1 = new double[2];
+        tempFirstPoint1[0]=Double.MAX_VALUE;
+        tempFirstPoint1[1]=Double.MAX_VALUE;
+        tempSecondPoint1[0]=-1;
+        tempSecondPoint1[1]=-1;
+        double[][] firstMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+        for (int i=0;i< firstTemp.size();i++)
+        {
+            if (firstTemp.get(i).getLAT()<tempFirstPoint1[0])
+                tempFirstPoint1[0]=firstTemp.get(i).getLAT();
+            if (firstTemp.get(i).getLON()<tempFirstPoint1[1])
+                tempFirstPoint1[1]=firstTemp.get(i).getLON();
+
+            if (firstTemp.get(i).getLAT()>tempSecondPoint1[0])
+                tempSecondPoint1[0]=firstTemp.get(i).getLAT();
+            if (firstTemp.get(i).getLON()>tempSecondPoint1[1])
+                tempSecondPoint1[1]=firstTemp.get(i).getLON();
+        }
+        firstMBR[0][0]=tempFirstPoint1[0];firstMBR[0][1]=tempFirstPoint1[1];
+        firstMBR[1][0]=tempSecondPoint1[0];firstMBR[1][1]=tempFirstPoint1[1];
+        firstMBR[2][0]=tempFirstPoint1[0];firstMBR[2][1]=tempSecondPoint1[1];
+        firstMBR[3][0]=tempSecondPoint1[0];firstMBR[3][1]=tempSecondPoint1[1];
+
+        return firstMBR;
+
+
+    }
+
+
+    private static double chooseSplitAxis(ArrayList<Record> recordsDup)
+    {
+        double margin_value=0;
+        for (int k=1;k<calculateMaxBlockNodes()-Math.floor(2*m*calculateMaxBlockNodes())+2;k++)
+        {
+            ArrayList<Record> firstTemp = new ArrayList<>();
+            ArrayList<Record> secondTemp = new ArrayList<>();
+
+
+
+            //double[] tempFirstPoint2 = new double[2];
+            //double[] tempSecondPoint2 = new double[2];
+            //tempFirstPoint2[0]=Double.MAX_VALUE;
+            //tempFirstPoint2[1]=Double.MAX_VALUE;
+            //tempSecondPoint2[0]=-1;
+            //tempSecondPoint2[1]=-1;
+
+            //double[][] secondMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+
+            for (int l=0;l<Math.floor(m*calculateMaxBlockNodes()-1)+k;l++)
+            {
+                firstTemp.add(recordsDup.get(l));
+
+            }
+
+            double[][] firstMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+            firstMBR=calculateMBR(firstTemp);
+
+
+
+
+
+
+
+            //int tempL=0;
+            for (int l=(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;l<recordsDup.size();l++)
+            {
+
+                secondTemp.add(recordsDup.get(l));
+
+                //if (secondTemp.get(tempL).getLAT()<tempFirstPoint1[0])
+                 //   tempFirstPoint1[0]=secondTemp.get(tempL).getLAT();
+                //if (secondTemp.get(tempL).getLON()<tempFirstPoint1[1])
+                    //tempFirstPoint1[1]=secondTemp.get(tempL).getLON();
+
+               // if (secondTemp.get(tempL).getLAT()>tempSecondPoint1[0])
+                 //   tempSecondPoint1[0]=secondTemp.get(tempL).getLAT();
+                //if (secondTemp.get(tempL).getLON()>tempSecondPoint1[1])
+                //    tempSecondPoint1[1]=secondTemp.get(tempL).getLON();
+               // tempL++;
+
+            }
+            //tempL=0;
+            double[][] secondMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+            secondMBR=calculateMBR(secondTemp);
+
+            //secondMBR[0][0]=tempFirstPoint1[0];firstMBR[0][1]=tempFirstPoint1[1];
+            //secondMBR[1][0]=tempSecondPoint1[0];firstMBR[1][1]=tempFirstPoint1[1];
+            //secondMBR[2][0]=tempFirstPoint1[0];firstMBR[2][1]=tempSecondPoint1[1];
+            //secondMBR[3][0]=tempSecondPoint1[0];firstMBR[3][1]=tempSecondPoint1[1];
+
+
+
+
+
+            System.out.println("first arraysize= "+ firstTemp.size() + " second arraysize= " + secondTemp.size());
+            System.out.println("x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
+            System.out.println();
+
+        }
+        return 4;
+    }
+
+
     private static void Insert(int leafLevel, Record record){
         // call ChooseSubtree to find the best block to save the node and save it to blockId
-        int blockId = FileHandler.ChooseSubtree(leafLevel, record, 1);
+
+
+        int blockId = FileHandler.ChooseSubtree(root, record, 1);
+
         try {
             // read all indexfile
             File file = new File(IndexfilePath);
@@ -475,9 +731,14 @@ public class FileHandler {
 
             // get the current number of nodes inserted in the block
             byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            byte[] treeLevelBytes= new byte[Integer.BYTES];
             System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            System.arraycopy(block, 0, treeLevelBytes, 0, Integer.BYTES);
 
+            int treeLevel = ByteBuffer.wrap(treeLevelBytes).getInt();
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+            System.out.println(calculateMaxBlockNodes()-tempCurrentNoOfEntries);
+
 
             // check if it can be added
             if (tempCurrentNoOfEntries < FileHandler.calculateMaxBlockNodes()){
@@ -492,26 +753,65 @@ public class FileHandler {
                 System.arraycopy(doubleToBytes(record.getLON()), 0, datablock, Double.BYTES, Double.BYTES);
                 System.arraycopy(intToBytes(record.getId()), 0, datablock, 2 * Double.BYTES, Integer.BYTES);
 
+
+
+
+
                 indexfile.seek(ByteToWrite);
                 indexfile.write(datablock);
+
+                //if (tempCurrentNoOfEntries==0) //HAVE TO CHANGE LATER, WORKS NOW CAUSE WE ONLY HAVE ROOT
+                  //  calculateMBRpointbypoint(rootMBR,record,true);
+                //else
+                 //   calculateMBRpointbypoint(rootMBR,record,false);
+
 
                 tempCurrentNoOfEntries++;
                 indexfile.seek((long) blockId * blockSize + Integer.BYTES);
                 indexfile.write(intToBytes(tempCurrentNoOfEntries));
+                if (root==-1)
+                  root=blockSize;
 
                 indexfile.close();
-            } else if (tempCurrentNoOfEntries == FileHandler.calculateMaxBlockNodes()){
-                // second if bracket I2
-                // overflowtreament
+            }
+            else if (tempCurrentNoOfEntries == FileHandler.calculateMaxBlockNodes())
+            {
+                overflowTreatment(treeLevel,blockId,record);
             }
 
         } catch (Exception e){
             e.printStackTrace();
         }
+
     }
 
-    private static int ChooseSubtree(int leafLevel, Record record, int currentBlock){
-        try {
+
+
+    private static int ChooseSubtree(int root, Record record, int currentBlock)
+    {
+        try
+        {
+
+            if (root==-1)
+            {
+                noOfIndexfileBlocks++;
+                leafLevel++;
+                RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
+
+                indexfile.seek(4);
+                indexfile.write(intToBytes(noOfIndexfileBlocks));
+                indexfile.seek(8);
+                indexfile.write(intToBytes(leafLevel));
+
+                byte[] block = new byte[blockSize];
+                System.arraycopy(intToBytes(leafLevel), 0, block, 0, Integer.BYTES);
+                System.arraycopy(intToBytes(0), 0, block, Integer.BYTES, Integer.BYTES);
+
+                indexfile.seek((long) blockSize * noOfIndexfileBlocks);
+                indexfile.write(block);
+                indexfile.close();
+            }
+
             File file = new File(IndexfilePath);
             byte[] bytes = Files.readAllBytes(file.toPath());
             byte[] dataBlock = new byte[blockSize];
@@ -526,19 +826,29 @@ public class FileHandler {
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
 
             // first if bracket in CS2
-            if (tempLevel == leafLevel){
+
+            if (tempLevel == leafLevel)
+            {
                 return currentBlock;
-            } else if (tempLevel + 1 == leafLevel){
+            }
+            else if (tempLevel + 1 == leafLevel)
+            {
                 // first if bracket in the else bracket in CS2
                 // change currentblock so that the function works recursively
-            } else {
+            }
+            else
+            {
+                return 1;
                 // second if bracket in the else bracket in CS2
                 // change currentblock so that the function works recursively
             }
-        } catch (Exception e){
+        }
+        catch (Exception e)
+        {
             e.printStackTrace();
         }
-        return ChooseSubtree(leafLevel, record, currentBlock);
+        //return ChooseSubtree(leafLevel, record, currentBlock);
+        return 1;
     }
 
     public static void readIndexFile(){
@@ -546,7 +856,8 @@ public class FileHandler {
             File file = new File(IndexfilePath);
             byte[] bytes = Files.readAllBytes(file.toPath());
             // for each block in index file other than the metadata block
-            for (int i = 1; i < noOfIndexfileBlocks; i++){
+            for (int i = 1; i < noOfIndexfileBlocks+1; i++){
+
                 byte[] block = new byte[blockSize];
                 System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
 
@@ -616,6 +927,6 @@ public class FileHandler {
         // Return the number of rectangles that a block can have, which is total block size minus the size of metadata
         // minus the left childpointer of the first rectangle (the first rectangle is the only one with two childpointers)
         // and all mod with rectangleInfoSize
-        return (blockSize - metadataSize - Integer.BYTES) / nodeInfoSize;
+        return (blockSize - metadataSize) / nodeInfoSize;
     }
 }
