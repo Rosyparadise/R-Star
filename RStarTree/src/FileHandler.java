@@ -12,6 +12,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.spec.KeySpec;
 import java.util.ArrayList;
 import java.util.Arrays;
 
@@ -24,7 +25,7 @@ public class FileHandler {
     private static final String DatafilePath = "datafile.dat";
     private static final String IndexfilePath = "indexfile.dat";
     private static int dimensions; //2 for testing
-    private static double[][] rootMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+    private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
     private static final int blockSize = 32768; //32KB (KB=1024B)
@@ -324,7 +325,7 @@ public class FileHandler {
     }
 
     static void createIndexFile(){
-
+        rootMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
         FileHandler.createFirstIndexfileBlock();
         FileHandler.insertIndexfileNodes();
     }
@@ -508,69 +509,6 @@ public class FileHandler {
         }
     }
 
-    private static void split(int blockId,Record troublemaker)
-    {
-
-        try {
-            File file = new File(IndexfilePath);
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            byte[] block = new byte[blockSize];
-            System.arraycopy(bytes, blockId * blockSize, block, 0, blockSize);
-            byte[] noOfBlocksArray = new byte[4];
-            System.arraycopy(block, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
-            int tempCurrentNoOfEntries = ByteBuffer.wrap(noOfBlocksArray).getInt();
-            ArrayList<Record> tempRecords = new ArrayList<>();
-            int bytecounter=8;
-            byte[] LATarray = new byte[Double.BYTES];
-            byte[] LONarray = new byte[Double.BYTES];
-            byte[] RecordIdArray = new byte[Integer.BYTES];
-
-            System.out.println(tempCurrentNoOfEntries);
-            for (int j=0;j<tempCurrentNoOfEntries;j++)
-            {
-                System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
-                System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
-                System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
-                bytecounter += 2 * Double.BYTES + Integer.BYTES;
-
-                tempRecords.add(new Record(ByteBuffer.wrap(LATarray).getDouble(),ByteBuffer.wrap(LONarray).getDouble(),ByteBuffer.wrap(RecordIdArray).getInt()));
-                double LAT = ByteBuffer.wrap(LATarray).getDouble();
-                double LON = ByteBuffer.wrap(LONarray).getDouble();
-                int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
-
-               // System.out.println("LAT: " + tempRecords.get(j).getLAT() + ", LON: " + tempRecords.get(j).getLON());
-
-            }
-            tempRecords.add(troublemaker);
-            ArrayList<Record> recordsDup = new ArrayList<>();
-            recordsDup.addAll(tempRecords);
-            ArrayList<Record> first = new ArrayList<>();
-            ArrayList<Record> second = new ArrayList<>();
-
-
-            for (int i=0;i<dimensions;i++)
-            {
-                if (i==0)
-                {
-                    Record.tempSort(recordsDup,0);
-                    chooseSplitAxis(recordsDup);
-                }
-                else
-                {
-                    Record.tempSort(recordsDup,1);
-                    chooseSplitAxis(recordsDup);
-                }
-            }
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-
-
-
-    }
 
     private static void calculateMBRpointbypoint(double[][] firstMBR, Record a,boolean isFirstEntry)
     {
@@ -640,8 +578,143 @@ public class FileHandler {
 
     }
 
+    private static void split(int blockId,Record troublemaker)
+    {
 
-    private static double chooseSplitAxis(ArrayList<Record> recordsDup)
+        try {
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] block = new byte[blockSize];
+            System.arraycopy(bytes, blockId * blockSize, block, 0, blockSize);
+            byte[] noOfBlocksArray = new byte[4];
+            System.arraycopy(block, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(noOfBlocksArray).getInt();
+            ArrayList<Record> tempRecords = new ArrayList<>();
+            int bytecounter=8;
+            byte[] LATarray = new byte[Double.BYTES];
+            byte[] LONarray = new byte[Double.BYTES];
+            byte[] RecordIdArray = new byte[Integer.BYTES];
+
+            System.out.println(tempCurrentNoOfEntries);
+            for (int j=0;j<tempCurrentNoOfEntries;j++)
+            {
+                System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+                System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
+                System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
+                bytecounter += 2 * Double.BYTES + Integer.BYTES;
+
+                tempRecords.add(new Record(ByteBuffer.wrap(LATarray).getDouble(),ByteBuffer.wrap(LONarray).getDouble(),ByteBuffer.wrap(RecordIdArray).getInt()));
+                double LAT = ByteBuffer.wrap(LATarray).getDouble();
+                double LON = ByteBuffer.wrap(LONarray).getDouble();
+                int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
+
+               // System.out.println("LAT: " + tempRecords.get(j).getLAT() + ", LON: " + tempRecords.get(j).getLON());
+
+            }
+            tempRecords.add(troublemaker); //MIGHT NOT NEED RecordsDup
+            ArrayList<Record> recordsDup = new ArrayList<>();
+            recordsDup.addAll(tempRecords);
+            double margin_value=Double.MAX_VALUE;
+            ArrayList<Record> axisLeastMargin= new ArrayList<>();
+
+            //THIS NEEDS TO BE CHANGED TO WORK FOR ANY NUMBER OF DIMENSIONS
+            for (int i=0;i<dimensions;i++)
+            {
+                if (i==0)
+                {
+                    Record.tempSort(recordsDup,0);
+                    double temp=chooseSplitAxis(recordsDup,blockId);
+                    System.out.println("MARGIN VALUE HERE ="+temp);
+                    if (temp<margin_value) {
+                        margin_value = temp;
+                        axisLeastMargin.addAll(recordsDup);
+                    }
+                }
+                else
+                {
+                    Record.tempSort(recordsDup,1);
+                    double temp=chooseSplitAxis(recordsDup,blockId);
+                    System.out.println("MARGIN VALUE HERE ="+temp);
+                    if (temp<margin_value) {
+                        margin_value = temp;
+                        axisLeastMargin.addAll(recordsDup);
+                    }
+                }
+            }
+
+
+            double overlap_value=Double.MAX_VALUE;
+            int result_split = chooseSplitIndex(axisLeastMargin);
+
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static int chooseSplitIndex(ArrayList<Record> axisLeastMargin)
+    {
+        double overlap=0;
+        double min_overlap=Double.MAX_VALUE;
+        int result=0;
+        for (int k=1;k<calculateMaxBlockNodes()-Math.floor(2*m*calculateMaxBlockNodes())+2;k++)
+        {
+            ArrayList<Record> firstTemp = new ArrayList<>();
+            ArrayList<Record> secondTemp = new ArrayList<>();
+
+
+            for (int l=0;l<(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;l++)
+                firstTemp.add(axisLeastMargin.get(l));
+
+
+            double[][] firstMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+            firstMBR=calculateMBR(firstTemp);
+
+            for (int l=(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;l<axisLeastMargin.size();l++)
+                secondTemp.add(axisLeastMargin.get(l));
+
+            double[][] secondMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+            secondMBR=calculateMBR(secondTemp);
+
+            overlap=calcOverlap(firstMBR,secondMBR);
+            if (overlap<min_overlap)
+            {
+                min_overlap=overlap;
+                System.out.println("sPLIT INDEX!! = " + Math.floor(m*calculateMaxBlockNodes()-1)+k);
+                result=(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;
+            }
+            System.out.println("overlap value = " +overlap);
+            System.out.println();
+            overlap=0;
+        }
+        return result;
+    }
+
+    //has to work for any number of dimensions, dont know how to do that.
+    private static double calcOverlap(double[][] a, double[][] b)
+    {
+        double overlap=0;
+        // Area of 1st Rectangle
+        double area1 = Math.abs(a[0][0] - a[3][0]) * Math.abs(a[0][1] - a[3][1]);
+
+        // Area of 2nd Rectangle
+        double area2 = Math.abs(b[0][0] - b[3][0]) * Math.abs(b[0][1] - b[3][1]);
+
+
+        double x_dist = Math.min(a[3][0], b[3][0]) - Math.max(a[0][0], b[0][0]);
+        double y_dist = Math.min(a[3][1], b[3][1]) - Math.max(a[0][1], b[0][1]);
+        double areaI = 0;
+        if( x_dist > 0 && y_dist > 0 )
+            areaI = x_dist * y_dist;
+
+        return (area1 + area2 - areaI);
+    }
+
+
+
+
+
+    private static double chooseSplitAxis(ArrayList<Record> recordsDup, int blockId) //BLOCKID TO GET PARENT AND THEREFORE MBR OF PARENT
     {
         double margin_value=0;
         for (int k=1;k<calculateMaxBlockNodes()-Math.floor(2*m*calculateMaxBlockNodes())+2;k++)
@@ -650,68 +723,51 @@ public class FileHandler {
             ArrayList<Record> secondTemp = new ArrayList<>();
 
 
-
-            //double[] tempFirstPoint2 = new double[2];
-            //double[] tempSecondPoint2 = new double[2];
-            //tempFirstPoint2[0]=Double.MAX_VALUE;
-            //tempFirstPoint2[1]=Double.MAX_VALUE;
-            //tempSecondPoint2[0]=-1;
-            //tempSecondPoint2[1]=-1;
-
-            //double[][] secondMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
-
             for (int l=0;l<Math.floor(m*calculateMaxBlockNodes()-1)+k;l++)
-            {
                 firstTemp.add(recordsDup.get(l));
 
-            }
 
             double[][] firstMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
             firstMBR=calculateMBR(firstTemp);
+            margin_value+=calcMargin(firstMBR,blockId);
 
-
-
-
-
-
-
-            //int tempL=0;
             for (int l=(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;l<recordsDup.size();l++)
-            {
-
                 secondTemp.add(recordsDup.get(l));
 
-                //if (secondTemp.get(tempL).getLAT()<tempFirstPoint1[0])
-                 //   tempFirstPoint1[0]=secondTemp.get(tempL).getLAT();
-                //if (secondTemp.get(tempL).getLON()<tempFirstPoint1[1])
-                    //tempFirstPoint1[1]=secondTemp.get(tempL).getLON();
-
-               // if (secondTemp.get(tempL).getLAT()>tempSecondPoint1[0])
-                 //   tempSecondPoint1[0]=secondTemp.get(tempL).getLAT();
-                //if (secondTemp.get(tempL).getLON()>tempSecondPoint1[1])
-                //    tempSecondPoint1[1]=secondTemp.get(tempL).getLON();
-               // tempL++;
-
-            }
-            //tempL=0;
             double[][] secondMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
             secondMBR=calculateMBR(secondTemp);
-
-            //secondMBR[0][0]=tempFirstPoint1[0];firstMBR[0][1]=tempFirstPoint1[1];
-            //secondMBR[1][0]=tempSecondPoint1[0];firstMBR[1][1]=tempFirstPoint1[1];
-            //secondMBR[2][0]=tempFirstPoint1[0];firstMBR[2][1]=tempSecondPoint1[1];
-            //secondMBR[3][0]=tempSecondPoint1[0];firstMBR[3][1]=tempSecondPoint1[1];
-
-
+            margin_value+=calcMargin(secondMBR,blockId);
 
 
 
             System.out.println("first arraysize= "+ firstTemp.size() + " second arraysize= " + secondTemp.size());
+            System.out.println("x1,y1 = ("+ firstMBR[0][0] + " " + firstMBR[0][1]+") " + "x2,y1 = ("+ firstMBR[1][0] + " " + firstMBR[1][1]+") " + "x1,y2 = ("+ firstMBR[2][0] + " " + firstMBR[2][1]+") " + "x2,y2 = ("+ firstMBR[3][0] + " " + firstMBR[3][1]+") ");
             System.out.println("x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
+            System.out.println("margin value = " +margin_value);
             System.out.println();
+            //margin_value=0;
+        }
+        return margin_value;
+    }
+
+    private static double calcMargin(double[][] childMBR, int blockId)
+    {
+        double margin_value=0;
+        if (blockId==1)
+        {
+            margin_value+=Math.abs(rootMBR[2][1]-childMBR[2][1]); //top margin
+            margin_value+=Math.abs(rootMBR[0][1]-childMBR[0][1]); //bottom margin
+            margin_value+=Math.abs(rootMBR[0][0]-childMBR[0][0]); //left margin
+            margin_value+=Math.abs(rootMBR[1][0]-childMBR[1][0]); //left margin
+
+            //block is root so we use rootMBR. (I think this is how margin-values work, not sure though)
 
         }
-        return 4;
+        else
+        {
+            //get parent's MBR via child's pointer to parent and calculate
+        }
+        return margin_value;
     }
 
 
@@ -760,10 +816,16 @@ public class FileHandler {
                 indexfile.seek(ByteToWrite);
                 indexfile.write(datablock);
 
-                //if (tempCurrentNoOfEntries==0) //HAVE TO CHANGE LATER, WORKS NOW CAUSE WE ONLY HAVE ROOT
-                  //  calculateMBRpointbypoint(rootMBR,record,true);
-                //else
-                 //   calculateMBRpointbypoint(rootMBR,record,false);
+                if (tempCurrentNoOfEntries==0) //HAVE TO CHANGE LATER, WORKS NOW CAUSE WE ONLY HAVE ROOT
+                {
+                    calculateMBRpointbypoint(rootMBR,record,true);
+                    System.out.println("x1,y1 = ("+ rootMBR[0][0] + " " + rootMBR[0][1]+") " + "x2,y1 = ("+ rootMBR[1][0] + " " + rootMBR[1][1]+") " + "x1,y2 = ("+ rootMBR[2][0] + " " + rootMBR[2][1]+") " + "x2,y2 = ("+ rootMBR[3][0] + " " + rootMBR[3][1]+") ");
+                }
+                else
+                {
+                    calculateMBRpointbypoint(rootMBR,record,false);
+                    System.out.println("x1,y1 = ("+ rootMBR[0][0] + " " + rootMBR[0][1]+") " + "x2,y1 = ("+ rootMBR[1][0] + " " + rootMBR[1][1]+") " + "x1,y2 = ("+ rootMBR[2][0] + " " + rootMBR[2][1]+") " + "x2,y2 = ("+ rootMBR[3][0] + " " + rootMBR[3][1]+") ");
+                }
 
 
                 tempCurrentNoOfEntries++;
