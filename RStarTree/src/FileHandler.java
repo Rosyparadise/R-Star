@@ -476,7 +476,7 @@ public class FileHandler {
             for (Record record : records) {
                 FileHandler.Insert(leafLevel, record);
                 counter++;
-                if (counter == 1639){
+                if (counter == 1638){
                     File file2 = new File(IndexfilePath);
                     break;
                 }
@@ -589,7 +589,8 @@ public class FileHandler {
             System.arraycopy(block, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
             int tempCurrentNoOfEntries = ByteBuffer.wrap(noOfBlocksArray).getInt();
             ArrayList<Record> tempRecords = new ArrayList<>();
-            int bytecounter=8;
+
+            int bytecounter = 3 * Integer.BYTES;
             byte[] LATarray = new byte[Double.BYTES];
             byte[] LONarray = new byte[Double.BYTES];
             byte[] RecordIdArray = new byte[Integer.BYTES];
@@ -671,13 +672,12 @@ public class FileHandler {
         if (blockId==1 && leafLevel==0)
         {
             File file = new File(IndexfilePath);
-            byte[] bytes = new byte[0];
             try {
-                bytes = Files.readAllBytes(file.toPath());
+                byte[] bytes = Files.readAllBytes(file.toPath());
                 byte[] dataBlock = new byte[blockSize];
                 System.arraycopy(bytes, blockId*blockSize,dataBlock,0,Integer.BYTES);
                 System.arraycopy(intToBytes(2),0,dataBlock,Integer.BYTES,Integer.BYTES);
-                int counter=8;
+                int counter = 3 * Integer.BYTES;
 
                 for (int i=0;i<Math.pow(2,dimensions);i+=Math.pow(2,dimensions)-1)
                 {
@@ -699,7 +699,9 @@ public class FileHandler {
 
                 System.arraycopy(intToBytes(leafLevel), 0,dataBlock1,0,Integer.BYTES);
                 System.arraycopy(intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
-                int counter1=8;
+                System.arraycopy(intToBytes(blockId), 0, dataBlock1, 2 * Integer.BYTES, Integer.BYTES);
+
+                int counter1 = 3 * Integer.BYTES;
                 for (int i=0;i<first.size();i++)
                 {
                     System.arraycopy(doubleToBytes(first.get(i).getLAT()),0,dataBlock1,counter1,Double.BYTES);
@@ -709,11 +711,6 @@ public class FileHandler {
                     System.arraycopy(intToBytes(first.get(i).getId()),0,dataBlock1,counter1,Integer.BYTES);
                     counter1+=Integer.BYTES;
                 }
-
-
-
-
-
 
                 for (int i=0;i<Math.pow(2,dimensions);i+=Math.pow(2,dimensions)-1)
                 {
@@ -732,7 +729,9 @@ public class FileHandler {
 
                 System.arraycopy(intToBytes(leafLevel), 0,dataBlock2,0,Integer.BYTES);
                 System.arraycopy(intToBytes(second.size()),0,dataBlock2,Integer.BYTES,Integer.BYTES);
-                int counter2=8;
+                System.arraycopy(intToBytes(blockId), 0, dataBlock2, 2 * Integer.BYTES, Integer.BYTES);
+
+                int counter2 = 3 * Integer.BYTES;
                 for (int i=0;i<second.size();i++)
                 {
                     System.arraycopy(doubleToBytes(second.get(i).getLAT()),0,dataBlock2,counter2,Double.BYTES);
@@ -751,14 +750,7 @@ public class FileHandler {
                 indexfile.write(dataBlock1);
                 indexfile.seek((long) noOfIndexfileBlocks *blockSize);
                 indexfile.write(dataBlock2);
-
-
-
-
                 indexfile.close();
-
-
-
             }
             catch (IOException e) {
                 e.printStackTrace();
@@ -894,10 +886,13 @@ public class FileHandler {
             System.arraycopy(bytes, blockId * blockSize, block, 0, blockSize);
 
             // get the current number of nodes inserted in the block
+            byte[] treeLevelBytes = new byte[Integer.BYTES];
             byte[] currentNoOfEntries = new byte[Integer.BYTES];
-            byte[] treeLevelBytes= new byte[Integer.BYTES];
-            System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            byte[] parentPointerArray = new byte[Integer.BYTES];
+
             System.arraycopy(block, 0, treeLevelBytes, 0, Integer.BYTES);
+            System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            System.arraycopy(block, 2 * Integer.BYTES, parentPointerArray, 0, Integer.BYTES);
 
             int treeLevel = ByteBuffer.wrap(treeLevelBytes).getInt();
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
@@ -909,16 +904,12 @@ public class FileHandler {
                 // calculate the byte address which the node info will be written in the indexfile.
                 // So, block location (blockId * blockSize), metadata size (2 * Integer.BYTES), currently added nodes
                 // (tempCurrentNoOfEntries * (2 * Double.BYTES + Integer.BYTES)
-                int ByteToWrite = 2 * Integer.BYTES + tempCurrentNoOfEntries * (2 * Double.BYTES + Integer.BYTES) + blockId * blockSize;
+                int ByteToWrite = 3 * Integer.BYTES + tempCurrentNoOfEntries * (2 * Double.BYTES + Integer.BYTES) + blockId * blockSize;
                 byte[] datablock = new byte[2 * Double.BYTES + Integer.BYTES];
 
                 System.arraycopy(doubleToBytes(record.getLAT()), 0, datablock, 0, Double.BYTES);
                 System.arraycopy(doubleToBytes(record.getLON()), 0, datablock, Double.BYTES, Double.BYTES);
                 System.arraycopy(intToBytes(record.getId()), 0, datablock, 2 * Double.BYTES, Integer.BYTES);
-
-
-
-
 
                 indexfile.seek(ByteToWrite);
                 indexfile.write(datablock);
@@ -931,7 +922,7 @@ public class FileHandler {
                 indexfile.seek((long) blockId * blockSize + Integer.BYTES);
                 indexfile.write(intToBytes(tempCurrentNoOfEntries));
                 if (root==-1)
-                  root=blockSize;
+                    root=blockSize;
 
                 indexfile.close();
             }
@@ -943,7 +934,6 @@ public class FileHandler {
         } catch (Exception e){
             e.printStackTrace();
         }
-
     }
 
 
@@ -951,7 +941,6 @@ public class FileHandler {
     {
         try
         {
-
             if (root==-1)
             {
                 noOfIndexfileBlocks++;
@@ -965,7 +954,10 @@ public class FileHandler {
 
                 byte[] block = new byte[blockSize];
                 System.arraycopy(intToBytes(leafLevel), 0, block, 0, Integer.BYTES);
+                // current No of nodes/ rectangles
                 System.arraycopy(intToBytes(0), 0, block, Integer.BYTES, Integer.BYTES);
+                // parent pointer
+                System.arraycopy(intToBytes(-1), 0, block, 2 * Integer.BYTES, Integer.BYTES);
 
                 indexfile.seek((long) blockSize * noOfIndexfileBlocks);
                 indexfile.write(block);
@@ -979,8 +971,10 @@ public class FileHandler {
 
             byte[] level = new byte[Integer.BYTES];
             byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            byte[] parentPointer = new byte[Integer.BYTES];
             System.arraycopy(dataBlock, 0, level, 0, Integer.BYTES);
             System.arraycopy(dataBlock, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            System.arraycopy(dataBlock, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
 
             int tempLevel = ByteBuffer.wrap(level).getInt();
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
@@ -1017,27 +1011,31 @@ public class FileHandler {
             byte[] bytes = Files.readAllBytes(file.toPath());
             // for each block in index file other than the metadata block
             for (int i = 1; i < noOfIndexfileBlocks+1; i++){
-
                 byte[] block = new byte[blockSize];
                 System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
 
                 // read the metadata
                 byte[] level = new byte[Integer.BYTES];
                 byte[] currentNoOfEntries = new byte[Integer.BYTES];
+                byte[] parentPointer = new byte[Integer.BYTES];
+
                 System.arraycopy(block, 0, level, 0, Integer.BYTES);
                 System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+                System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
 
                 int tempLevel = ByteBuffer.wrap(level).getInt();
                 int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+                int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
 
                 // write custom output for leaf level (needs one for rectangle as well ++)
                 if (tempLevel == leafLevel){
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + "\nRecords: ");
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + leafLevel +
+                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
 
                     byte[] LATarray = new byte[Double.BYTES];
                     byte[] LONarray = new byte[Double.BYTES];
                     byte[] RecordIdArray = new byte[Integer.BYTES];
-                    int bytecounter = 2*Integer.BYTES;
+                    int bytecounter = 3 * Integer.BYTES;
 
                     for (int j = 0; j < tempCurrentNoOfEntries; j++){
                         System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
@@ -1051,15 +1049,16 @@ public class FileHandler {
                         int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
 
                         System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId+ ", Datafile block: " +
-                               records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
+                                records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
                                 records.get(recordId).getRecordLocation().getSlot());
                     }
                 }
                 else
                 {
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + "\nRecords: ");
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + leafLevel +
+                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
 
-                    int bytecounter = 2*Integer.BYTES;
+                    int bytecounter = 3 * Integer.BYTES;
                     byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
 
                     for (int j=0;j < tempCurrentNoOfEntries; j++)
@@ -1090,8 +1089,9 @@ public class FileHandler {
     }
 
     public static int calculateMaxBlockRectangles(){
-        // Save in metadataSize the size of the number of rectangles (Integer) plus level (Integer)
-        int metadataSize = 2 * Integer.BYTES;
+        // Save in metadataSize the size of the number of rectangles (Integer), tree level (Integer) and parent pointer
+        // (Integer)
+        int metadataSize = 3 * Integer.BYTES;
 
         // Increment rectangleInfoSize by the size of the LAT (double) and LON (double) for each dimension plus the
         // childpointer (Integer)
@@ -1105,8 +1105,8 @@ public class FileHandler {
     }
 
     public static int calculateMaxBlockNodes(){
-        // Save in metadataSize the size of the number of nodes (Integer) plus level (Integer)
-        int metadataSize = 2 * Integer.BYTES;
+        // Save in metadataSize the size of the number of nodes (Integer), level (Integer) and parent pointer (Integer)
+        int metadataSize = 3 * Integer.BYTES;
 
         // Increment nodeInfoSize by the size of the LAT (double) and LON (double) of the node plus the record id
         // (Integer) of the node in the record arraylist, that can be used to get the location (block, byte) of the node
