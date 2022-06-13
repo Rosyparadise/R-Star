@@ -15,7 +15,7 @@ public class Main {
         FileHandler.createIndexFile();
 
         // read indexfile
-        //FileHandler.readIndexFile();
+        FileHandler.readIndexFile();
 
         // read indexfile metadata (first block)
 //        FileHandler.readFirstIndexfileBlock();
