@@ -1,6 +1,6 @@
 public class RecordLocation {
-    private int block;
-    private long slot;
+    private final int block;
+    private final long slot;
 
     public RecordLocation(int block, long slot){
         this.block = block;

@@ -1,11 +1,10 @@
 import java.util.ArrayList;
-import java.util.Comparator;
 
 public class Record {
-    private double LAT;
-    private double LON;
+    private final double LAT;
+    private final double LON;
     private RecordLocation recordLocation;
-    private int id;
+    private final int id;
 
     public Record(double LAT, double LON, int block, long slot, int id){
         this.LAT = LAT;
@@ -20,7 +19,6 @@ public class Record {
         this.id = id;
 
     }
-
 
     public RecordLocation getRecordLocation(){
         return recordLocation;
