@@ -5,6 +5,8 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.awt.*;
+import java.awt.image.AreaAveragingScaleFilter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -476,7 +478,7 @@ public class FileHandler {
             for (Record record : records) {
                 FileHandler.Insert(leafLevel, record);
                 counter++;
-                if (counter == 1638){
+                if (counter == 1639){
                     File file2 = new File(IndexfilePath);
                     break;
                 }
@@ -677,6 +679,7 @@ public class FileHandler {
                 byte[] dataBlock = new byte[blockSize];
                 System.arraycopy(bytes, blockId*blockSize,dataBlock,0,Integer.BYTES);
                 System.arraycopy(intToBytes(2),0,dataBlock,Integer.BYTES,Integer.BYTES);
+                System.arraycopy(intToBytes(-1),0,dataBlock,Integer.BYTES*2,Integer.BYTES);
                 int counter = 3 * Integer.BYTES;
 
                 for (int i=0;i<Math.pow(2,dimensions);i+=Math.pow(2,dimensions)-1)
@@ -742,7 +745,6 @@ public class FileHandler {
 
                     counter2+=Integer.BYTES;
                 }
-
                 RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
                 indexfile.seek((long) (noOfIndexfileBlocks - 2) *blockSize);
                 indexfile.write(dataBlock);
@@ -764,6 +766,7 @@ public class FileHandler {
     private static int chooseSplitIndex(ArrayList<Record> axisLeastMargin)
     {
         double overlap=0;
+        double area=0;
         double min_overlap=Double.MAX_VALUE;
         int result = 0;
         for (int k=1;k<calculateMaxBlockNodes()-Math.floor(2*m*calculateMaxBlockNodes())+2;k++)
@@ -788,9 +791,18 @@ public class FileHandler {
             overlap=calcOverlap(firstMBR,secondMBR);
             if (overlap<min_overlap)
             {
+                area=calcArea(firstMBR,secondMBR)-overlap;
                 min_overlap=overlap;
-
                 result=(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;
+            }
+            else if (overlap==min_overlap)
+            {
+                double b = calcArea(firstMBR,secondMBR)-overlap;
+                if (b<area)
+                {
+                    area=b;
+                    result=(int)Math.floor(m*calculateMaxBlockNodes()-1)+k;
+                }
             }
 
             overlap=0;
@@ -798,12 +810,22 @@ public class FileHandler {
         return result;
     }
 
+
+    private static double calcArea(double[][] firstMBR,double[][] secondMBR)
+    {
+        double a =  (firstMBR[2][1]-firstMBR[0][1])*(firstMBR[1][0]-firstMBR[0][0]);
+        double b =  (secondMBR[2][1]-secondMBR[0][1])*(secondMBR[1][0]-secondMBR[0][0]);
+        return (a+b);
+    }
+
+
     //has to work for any number of dimensions, dont know how to do that.
     private static double calcOverlap(double[][] a, double[][] b)
     {
         double overlap=0;
         // Area of 1st Rectangle
         double area1 = Math.abs(a[0][0] - a[3][0]) * Math.abs(a[0][1] - a[3][1]);
+
 
         // Area of 2nd Rectangle
         double area2 = Math.abs(b[0][0] - b[3][0]) * Math.abs(b[0][1] - b[3][1]);
@@ -875,7 +897,7 @@ public class FileHandler {
         // call ChooseSubtree to find the best block to save the node and save it to blockId
 
 
-        int blockId = FileHandler.ChooseSubtree(root, record, 1);
+        int blockId = FileHandler.ChooseSubtree(record, 1);
 
         try {
             // read all indexfile
@@ -937,7 +959,7 @@ public class FileHandler {
     }
 
 
-    private static int ChooseSubtree(int root, Record record, int currentBlock)
+    private static int ChooseSubtree(Record record, int currentBlock)
     {
         try
         {
@@ -978,6 +1000,7 @@ public class FileHandler {
 
             int tempLevel = ByteBuffer.wrap(level).getInt();
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+            int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
 
             // first if bracket in CS2
 
@@ -987,9 +1010,48 @@ public class FileHandler {
             }
             else if (tempLevel + 1 == leafLevel)
             {
-                // first if bracket in the else bracket in CS2
+
+                ArrayList<double[][]> rectangles = new ArrayList<>();
+                double[][] temp = new double[dimensions][dimensions];
+                int[] IDs = new int[tempCurrentNoOfEntries];
+                int counter=12;
+                byte[] tempSave = new byte[Double.BYTES];
+                byte[] tempSaveID = new byte[Integer.BYTES];
+
+                for (int i=0;i<tempCurrentNoOfEntries;i++)
+                {
+                    for (int j=0;j<2;j++)
+                    {
+                        for (int k=0;k<dimensions;k++)
+                        {
+                            System.arraycopy(dataBlock, counter, tempSave, 0, Double.BYTES);
+                            temp[j][k]=ByteBuffer.wrap(tempSave).getDouble();
+                            counter+=Double.BYTES;
+                        }
+                    }
+                    rectangles.add(temp);
+                    System.arraycopy(dataBlock, counter, tempSaveID, 0, Integer.BYTES);
+                    IDs[i]=ByteBuffer.wrap(tempSaveID).getInt();
+
+                    counter+=Integer.BYTES;
+                    temp = new double[dimensions][dimensions];
+                }
+
+
+                int result = determine_best_insertion(rectangles, record);
+                return ChooseSubtree(record, IDs[result]);
+
+
+
+
+
+
                 // change currentblock so that the function works recursively
+
+
             }
+
+
             else
             {
                 return 1;
@@ -1003,6 +1065,50 @@ public class FileHandler {
         }
         //return ChooseSubtree(leafLevel, record, currentBlock);
         return 1;
+    }
+
+
+    private static int determine_best_insertion(ArrayList<double[][]> rectangles, Record record)
+    {
+        double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double[][] temp2 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double temp_overlap=0;
+        double least_overlap=Double.MAX_VALUE;
+        int result=0;
+
+        for (int i=0;i<rectangles.size();i++)
+        {
+            points_to_rectangle(rectangles.get(i),temp1);
+            calculateMBRpointbypoint(temp1,record,false);
+
+
+            for (int j=0;j<rectangles.size();j++)
+            {
+                if (j!=i)
+                {
+                    points_to_rectangle(rectangles.get(j),temp2);
+
+                    temp_overlap+=calcOverlap(temp1,temp2);
+                }
+            }
+            if (temp_overlap<least_overlap)
+            {
+                least_overlap=temp_overlap;
+                result=i;
+            }
+            temp_overlap=0;
+        }
+
+        return result;
+    }
+
+
+    private static void points_to_rectangle(double[][] points,double[][] rectangle)
+    {
+        rectangle[0][0] = points[0][0];rectangle[0][1] = points[0][1];
+        rectangle[1][0] = points[1][0];rectangle[1][1] = points[0][1];
+        rectangle[2][0] = points[0][0];rectangle[2][1] = points[1][1];
+        rectangle[3][0] = points[1][0];rectangle[3][1] = points[1][1];
     }
 
     public static void readIndexFile(){
@@ -1027,7 +1133,6 @@ public class FileHandler {
                 int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
                 int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
 
-                // write custom output for leaf level (needs one for rectangle as well ++)
                 if (tempLevel == leafLevel){
                     System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + leafLevel +
                             ", Parent block id: " + tempParentPointer + "\nRecords: ");
