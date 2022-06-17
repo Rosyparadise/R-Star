@@ -72,7 +72,7 @@ public class ReAdjustRectangleBounds {
 
                         if (ByteBuffer.wrap(LatArray).getDouble() > maxLat)
                         {
-                            maxLat = ByteBuffer.wrap(LonArray).getDouble();
+                            maxLat = ByteBuffer.wrap(LatArray).getDouble();
                         }
 
                         if (ByteBuffer.wrap(LonArray).getDouble() < minLon)
@@ -88,7 +88,7 @@ public class ReAdjustRectangleBounds {
                         bytecounter += 2 * Double.BYTES + Integer.BYTES;
                     }
                 }
-                else if (tempBlockLevel < leafLevel)
+                else if (tempBlockLevel < leafLevel)//!=root
                 {
                     flag = true;
 
@@ -104,7 +104,7 @@ public class ReAdjustRectangleBounds {
 
                     bytecounter += 4 * Double.BYTES + Integer.BYTES;
 
-                    for (int i = 0; i < tempNoOfEntries; i++)
+                    for (int i = 1; i < tempNoOfEntries; i++)
                     {
                         System.arraycopy(dataBlock, bytecounter, minLatArray, 0, Double.BYTES);
                         System.arraycopy(dataBlock, bytecounter + Double.BYTES, minLonArray, 0, Double.BYTES);
@@ -118,7 +118,7 @@ public class ReAdjustRectangleBounds {
 
                         if (ByteBuffer.wrap(maxLatArray).getDouble() > maxLat)
                         {
-                            maxLat = ByteBuffer.wrap(maxLonArray).getDouble();
+                            maxLat = ByteBuffer.wrap(maxLatArray).getDouble();
                         }
 
                         if (ByteBuffer.wrap(minLonArray).getDouble() < minLon)

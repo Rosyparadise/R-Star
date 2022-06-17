@@ -7,7 +7,80 @@ import java.util.ArrayList;
 
 public class Split {
     private static final double m=0.4;
+    private static final double p=0.3;
 
+    public static void reinsert(int blockId, Record troublemaker)
+    {
+        String IndexfilePath = FileHandler.getIndexfilePath();
+        int blockSize = FileHandler.getBlockSize();
+        int dimensions = FileHandler.getDimensions();
+
+        try {
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] block = new byte[blockSize];
+            System.arraycopy(bytes, blockId * blockSize, block, 0, blockSize);
+
+            byte[] treeLevelBytes = new byte[Integer.BYTES];
+            byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            byte[] parentPointerArray = new byte[Integer.BYTES];
+
+            System.arraycopy(block, 0, treeLevelBytes, 0, Integer.BYTES);
+            System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            System.arraycopy(block, 2 * Integer.BYTES, parentPointerArray, 0, Integer.BYTES);
+
+            int treeLevel = ByteBuffer.wrap(treeLevelBytes).getInt();
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+            int parentPointer = ByteBuffer.wrap(parentPointerArray).getInt();
+
+            ArrayList<Record> tempRecords = new ArrayList<>();
+
+            int bytecounter = 3 * Integer.BYTES;
+            byte[] LATarray = new byte[Double.BYTES];
+            byte[] LONarray = new byte[Double.BYTES];
+            byte[] RecordIdArray = new byte[Integer.BYTES];
+
+            for (int j = 0; j < tempCurrentNoOfEntries; j++) {
+                System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+                System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
+                System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
+                bytecounter += 2 * Double.BYTES + Integer.BYTES;
+
+                tempRecords.add(new Record(ByteBuffer.wrap(LATarray).getDouble(), ByteBuffer.wrap(LONarray).getDouble(), ByteBuffer.wrap(RecordIdArray).getInt()));
+            }
+            tempRecords.add(troublemaker); //MIGHT NOT NEED RecordsDup
+            double[][] mbr = calculateMBR(tempRecords);
+            double[] mbr_midpoint = {(mbr[0][0] + mbr[3][0]) / 2.0,(mbr[0][1] + mbr[3][1]) / 2.0};
+            for (int i = 0; i < tempRecords.size(); i++)
+            {
+                for (int j = tempRecords.size() - 1; j > i; j--)
+                {
+                    if (calcDistance(mbr_midpoint,tempRecords.get(i)) > calcDistance(mbr_midpoint,tempRecords.get(j)))
+                    {
+                        Record tmp = tempRecords.get(i);
+                        tempRecords.set(i, tempRecords.get(j));
+                        tempRecords.set(j, tmp);
+                    }
+                }
+            }
+            int amountToReInsert= (int) Math.floor(tempRecords.size()*p);
+            ArrayList<Record> toReinsert = new ArrayList<>();
+            for (int i=0;i<amountToReInsert;i++)
+            {
+                toReinsert.add(tempRecords.get(i));
+            }
+            //continue
+
+        }
+        catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private static double calcDistance(double[] mbr_midpoint, Record record)
+    {
+        return Math.sqrt((mbr_midpoint[1] - record.getLON()) * (mbr_midpoint[1] - record.getLON()) + (mbr_midpoint[0] - record.getLAT()) * (mbr_midpoint[0] - record.getLAT()));
+    }
     public static void split(int blockId,Record troublemaker)
     {
         String IndexfilePath = FileHandler.getIndexfilePath();
@@ -88,6 +161,7 @@ public class Split {
 
 
             writeAfterSplit(first,second,firstMBR,secondMBR,blockId);
+            calculateMBRpointbypoint(FileHandler.getRootMBR(),troublemaker,false);
 
         }
         catch (IOException e) {
@@ -120,14 +194,13 @@ public class Split {
                         System.arraycopy(FileHandler.doubleToBytes(firstMBR[i][j]), 0,dataBlock,counter,Double.BYTES);
                         counter+=Double.BYTES;
                     }
-
                 }
                 FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
                 System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()),0,dataBlock,counter,Integer.BYTES);
                 counter+=Integer.BYTES;
 
 
-                leafLevel++; //METADATA BLOCK TOO
+                leafLevel++;
                 FileHandler.setLeafLevel(leafLevel);
 
                 byte[] dataBlock1 = new byte[blockSize];
@@ -182,6 +255,17 @@ public class Split {
                 indexfile.write(dataBlock1);
                 indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() *blockSize);
                 indexfile.write(dataBlock2);
+                //System.out.println("health x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
+
+
+                byte[] tempMetaData = FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks());
+                indexfile.seek(Integer.BYTES);
+                indexfile.write(tempMetaData);
+                tempMetaData = FileHandler.intToBytes(leafLevel);
+                indexfile.seek(Integer.BYTES*2);
+                indexfile.write(tempMetaData);
+
+
                 indexfile.close();
             }
             catch (IOException e) {
@@ -244,6 +328,20 @@ public class Split {
         double b =  (secondMBR[2][1]-secondMBR[0][1])*(secondMBR[1][0]-secondMBR[0][0]);
         return (a+b);
     }
+
+    private static double calcAreaDiff(double[][] firstMBR,double[][] secondMBR)
+    {
+        double a =  (firstMBR[2][1]-firstMBR[0][1])*(firstMBR[1][0]-firstMBR[0][0]);
+        double b =  (secondMBR[2][1]-secondMBR[0][1])*(secondMBR[1][0]-secondMBR[0][0]);
+        return (a-b);
+    }
+
+    private static double calcArea(double[][] firstMBR)
+    {
+        double a =  (firstMBR[2][1]-firstMBR[0][1])*(firstMBR[1][0]-firstMBR[0][0]);
+        return (a);
+    }
+
 
     private static double chooseSplitAxis(ArrayList<Record> recordsDup, int blockId) //BLOCKID TO GET PARENT AND THEREFORE MBR OF PARENT
     {
@@ -346,19 +444,65 @@ public class Split {
         return (area1 + area2 - areaI);
     }
 
+    public static int determine_best_insertion_forRectangles(ArrayList<double[][]> rectangles, Record record)
+    {
+        int dimensions = FileHandler.getDimensions();
+
+        double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double[][] temp3 = new double[(int)Math.pow(2,dimensions)][dimensions];
+
+        double area_diff=0;
+        double area=0;
+        double least_diff=Double.MAX_VALUE;
+        int result=0;
+
+        for (int i=0;i<rectangles.size();i++)
+        {
+            points_to_rectangle(rectangles.get(i),temp1);
+            for (int b=0;b<temp1.length;b++)
+                System.arraycopy(temp1[b], 0, temp3[b], 0, temp1[0].length);
+            calculateMBRpointbypoint(temp1,record,false);
+
+            area_diff=calcAreaDiff(temp1,temp3);
+
+            if (area_diff<least_diff)
+            {
+                least_diff=area_diff;
+                result=i;
+                area=calcArea(temp1);
+            }
+            else if (area_diff==least_diff)
+            {
+                double b = calcArea(temp1);
+                if (b<area)
+                {
+                    area=b;
+                    result=i;
+                }
+            }
+        }
+        return result;
+    }
+
     public static int determine_best_insertion(ArrayList<double[][]> rectangles, Record record)
     {
         int dimensions = FileHandler.getDimensions();
 
         double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
         double[][] temp2 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double[][] temp3 = new double[(int)Math.pow(2,dimensions)][dimensions];
+
         double temp_overlap=0;
+        double area_diff=0;
+        double area=0;
         double least_overlap=Double.MAX_VALUE;
         int result=0;
 
         for (int i=0;i<rectangles.size();i++)
         {
             points_to_rectangle(rectangles.get(i),temp1);
+            for (int b=0;b<temp1.length;b++)
+                System.arraycopy(temp1[b], 0, temp3[b], 0, temp1[0].length);
             calculateMBRpointbypoint(temp1,record,false);
 
 
@@ -367,7 +511,6 @@ public class Split {
                 if (j!=i)
                 {
                     points_to_rectangle(rectangles.get(j),temp2);
-
                     temp_overlap+=calcOverlap(temp1,temp2);
                 }
             }
@@ -375,6 +518,27 @@ public class Split {
             {
                 least_overlap=temp_overlap;
                 result=i;
+                area_diff=calcAreaDiff(temp1,temp3);
+                area=calcArea(temp1);
+            }
+            else if (temp_overlap==least_overlap)
+            {
+                double b = calcAreaDiff(temp1,temp3);
+                if (b<area_diff)
+                {
+                    area_diff=b;
+                    result=i;
+                    area=calcArea(temp1);
+                }
+                if (b==area_diff)
+                {
+                    double c = calcArea(temp1);
+                    if (c<area)
+                    {
+                        result=i;
+                        area=c;
+                    }
+                }
             }
             temp_overlap=0;
         }
@@ -382,7 +546,7 @@ public class Split {
         return result;
     }
 
-    private static void points_to_rectangle(double[][] points,double[][] rectangle)
+    public static void points_to_rectangle(double[][] points,double[][] rectangle)
     {
         rectangle[0][0] = points[0][0];rectangle[0][1] = points[0][1];
         rectangle[1][0] = points[1][0];rectangle[1][1] = points[0][1];

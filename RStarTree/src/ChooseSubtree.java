@@ -98,7 +98,33 @@ public class ChooseSubtree {
             }
             else
             {
-                return 1;
+                ArrayList<double[][]> rectangles = new ArrayList<>();
+                double[][] temp = new double[dimensions][dimensions];
+                int[] IDs = new int[tempCurrentNoOfEntries];
+                int counter=12;
+                byte[] tempSave = new byte[Double.BYTES];
+                byte[] tempSaveID = new byte[Integer.BYTES];
+
+                for (int i=0;i<tempCurrentNoOfEntries;i++)
+                {
+                    for (int j=0;j<2;j++)
+                    {
+                        for (int k=0;k<dimensions;k++)
+                        {
+                            System.arraycopy(dataBlock, counter, tempSave, 0, Double.BYTES);
+                            temp[j][k]=ByteBuffer.wrap(tempSave).getDouble();
+                            counter+=Double.BYTES;
+                        }
+                    }
+                    rectangles.add(temp);
+                    System.arraycopy(dataBlock, counter, tempSaveID, 0, Integer.BYTES);
+                    IDs[i]=ByteBuffer.wrap(tempSaveID).getInt();
+
+                    counter+=Integer.BYTES;
+                    temp = new double[dimensions][dimensions];
+                }
+                int result = Split.determine_best_insertion_forRectangles(rectangles, record);
+                return chooseSubtree(record, IDs[result]);
                 // second if bracket in the else bracket in CS2
                 // change currentblock so that the function works recursively
             }

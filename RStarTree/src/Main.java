@@ -15,17 +15,19 @@ public class Main {
         FileHandler.createIndexFile();
 
         // read indexfile
+        System.out.println();
+        System.out.println();
+        FileHandler.readFirstIndexfileBlock();
         FileHandler.readIndexFile();
 
         // read indexfile metadata (first block)
-//        FileHandler.readFirstIndexfileBlock();
 
         // delete
-        double LAT = 41.3850909;
-        double LON = 26.6241053;
-        FileHandler.delete(LAT, LON);
+        //double LAT = 41.4930671;
+        //double LON = 26.5358795;
+        //FileHandler.delete(LAT, LON);
 
-        FileHandler.readIndexFile();
+        //FileHandler.readIndexFile();
     }
 }
 

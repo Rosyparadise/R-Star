@@ -4,8 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.file.Files;
 
 public class Insert {
-    private static int overflowCounter = 0;
-    private static int overflowLevel =- 1;
+    private static boolean overflow_first_time = false;
+    private static boolean reinsert_just_ended = false;
+    private static int overflowLevel = -1;
 
     public static void insert(int leafLevel, Record record){
         // call ChooseSubtree to find the best block to save the node and save it to blockId
@@ -33,6 +34,7 @@ public class Insert {
 
             int treeLevel = ByteBuffer.wrap(treeLevelBytes).getInt();
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+            int parentPointer = ByteBuffer.wrap(parentPointerArray).getInt();
 
             // check if it can be added
             if (tempCurrentNoOfEntries < FileHandler.calculateMaxBlockNodes()){
@@ -51,7 +53,12 @@ public class Insert {
                 indexfile.write(datablock);
 
                 //HAVE TO CHANGE LATER, WORKS NOW CAUSE WE ONLY HAVE ROOT
-                Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),record, tempCurrentNoOfEntries == 0);
+                if (blockId==1)
+                    Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),record, tempCurrentNoOfEntries == 0);
+                else
+                    ReadjustMBR.reAdjustRectangleBounds(blockId,parentPointer,record);
+
+
 
 
                 tempCurrentNoOfEntries++;
@@ -59,6 +66,10 @@ public class Insert {
                 indexfile.write(FileHandler.intToBytes(tempCurrentNoOfEntries));
                 if (FileHandler.getRoot() ==-1)
                     FileHandler.setRoot(blockSize);
+                if (reinsert_just_ended) {
+                    overflowLevel = -1;
+                    reinsert_just_ended=false;
+                }
 
                 indexfile.close();
             }
@@ -74,23 +85,21 @@ public class Insert {
 
     public static void overflowTreatment(int treeLevel,int blockid,Record troublemaker)
     {
-        if (treeLevel!=0 && overflowCounter==0)
+        if (blockid!=overflowLevel)
         {
-            if (overflowLevel==treeLevel)
-            {
-                //reinsert overflowcounter = 0 and level = -1
-            }
-            else
-            {
-                overflowCounter=0;
-                overflowLevel=treeLevel;
-            }
-
-            //do smth
+            overflow_first_time=true;
+            overflowLevel=blockid;
+        }
+        if (treeLevel!=0 && overflow_first_time)
+        {
+            overflow_first_time=false;
+            Split.reinsert(blockid,troublemaker);
+            reinsert_just_ended=true;
         }
         else
         {
             Split.split(blockid,troublemaker);
+            overflowLevel=-1;
         }
     }
 }

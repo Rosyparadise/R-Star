@@ -452,7 +452,7 @@ public class FileHandler {
                 int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
 
                 if (tempLevel == leafLevel){
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + leafLevel +
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", no of entries: " + tempCurrentNoOfEntries +
                             ", Parent block id: " + tempParentPointer + "\nRecords: ");
 
                     byte[] LATarray = new byte[Double.BYTES];
@@ -493,7 +493,6 @@ public class FileHandler {
                                 System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
                                 bytecounter+=Double.BYTES;
                                 System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
-
                             }
                         }
                         System.out.println();
@@ -501,10 +500,7 @@ public class FileHandler {
                         bytecounter+=Integer.BYTES;
 
                     }
-
-
                 }
-
             }
         } catch (Exception e){
             e.printStackTrace();
@@ -557,6 +553,10 @@ public class FileHandler {
 
     public static String getIndexfilePath() {
         return IndexfilePath;
+    }
+
+    public static String getDatafilePath() {
+        return DatafilePath;
     }
 
     public static int getBlockSize() {
