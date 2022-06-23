@@ -17,6 +17,15 @@ public class Main {
         // read indexfile
         System.out.println();
         System.out.println();
+        System.out.println("root");
+        for (int i=0;i<4;i++)
+        {
+            for (int j=0;j<2;j++)
+            {
+                System.out.print(FileHandler.getRootMBR()[i][j]+ " ");
+            }
+            System.out.println();
+        }
         FileHandler.readFirstIndexfileBlock();
         FileHandler.readIndexFile();
 

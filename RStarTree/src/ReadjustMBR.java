@@ -3,10 +3,13 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 
-public class ReadjustMBR {
+public class ReadjustMBR
+{
 
-    public static void reAdjustRectangleBounds(int blockId, int parentBlockId,Object troublemaker)
+    public static void reAdjustRectangleBounds(int blockId, int parentBlockId,Object troublemaker,boolean shrink)
     {
+        if (parentBlockId!=-1)
+        {
             try
             {
                 String IndexfilePath = FileHandler.getIndexfilePath();
@@ -53,7 +56,6 @@ public class ReadjustMBR {
                             }
                         }
                         break outer;
-
                     }
                     else
                         bytecounter += 4 * Double.BYTES + Integer.BYTES;
@@ -66,14 +68,15 @@ public class ReadjustMBR {
                 for (int i=0;i<rectangle.length;i++)
                     System.arraycopy(rectangle[i], 0, rectangleNEW[i], 0, dimensions);
 
+                if (tempBlockLevel+1==leafLevel) {
+                    Split.calculateMBRpointbypoint(rectangle, (Record) troublemaker, false, shrink);
 
-                if (tempBlockLevel+1==leafLevel)
-                    Split.calculateMBRpointbypoint(rectangle, (Record) troublemaker,false);
+                }
                 else
                 {
                     double[][] mbr = (double[][]) troublemaker;
                     for (int l=0;l<mbr.length;l++)
-                       Split.calculateMBRpointbypoint(rectangle,new Record(mbr[l][0],mbr[l][1],-1),false);
+                       Split.calculateMBRpointbypoint(rectangle,new Record(mbr[l][0],mbr[l][1],-1),false,shrink);
 
                 }
 
@@ -105,19 +108,46 @@ public class ReadjustMBR {
                     }
                     bytes.seek((long) parentBlockId *blockSize);
                     bytes.write(dataBlock);
-                    if (tempParentPointer==-1)
-                    {
-                        for (int l=0;l<rectangle.length;l++)
-                            Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),new Record(rectangle[l][0],rectangle[l][1],-1),false);
 
-                        return;
-                    }
-                    reAdjustRectangleBounds(parentBlockId,tempParentPointer,rectangle);
+                    reAdjustRectangleBounds(parentBlockId,tempParentPointer,rectangle,shrink);
                 }
             }
             catch (Exception e)
             {
                 e.printStackTrace();
             }
+        }
+        else
+        {
+            int dimensions = FileHandler.getDimensions();
+
+            double[][] rectangle = FileHandler.getRootMBR();
+            double[][] rectangleNEW = new double[(int) Math.pow(2, dimensions)][dimensions];
+
+            for (int i=0;i<rectangle.length;i++)
+                System.arraycopy(rectangle[i], 0, rectangleNEW[i], 0, dimensions);
+
+            if (troublemaker instanceof Record) {
+                Split.calculateMBRpointbypoint(rectangle, (Record) troublemaker, false, shrink);
+
+            }
+            else
+            {
+                double[][] mbr = (double[][]) troublemaker;
+                for (int l=0;l<mbr.length;l++)
+                    Split.calculateMBRpointbypoint(rectangle,new Record(mbr[l][0],mbr[l][1],-1),false,shrink);
+
+            }
+
+
+
+
+            for (int l=0;l<rectangle.length;l++)
+                    Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),new Record(rectangle[l][0],rectangle[l][1],-1),false,shrink);
+
+
+                return;
+
+        }
     }
 }

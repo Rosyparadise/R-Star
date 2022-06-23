@@ -17,14 +17,14 @@ public class FileHandler {
     private static int noOfDatafileBlocks = 0;
     private static int noOfIndexfileBlocks = 0;
     private static int leafLevel = -1;
-    private static final String OsmfilePath = "map.osm";
+    private static final String OsmfilePath = "map2.osm";
     private static final String DatafilePath = "datafile.dat";
     private static final String IndexfilePath = "indexfile.dat";
     private static int dimensions; //2 for testing
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
-    private static final int blockSize = 32768; //32KB (KB=1024B)
+    private static final int blockSize = 512; //32KB (KB=1024B)
     private static final ArrayList<Record> records = new ArrayList<>();
 
     public static byte[] longToBytes(long x) {
@@ -419,7 +419,11 @@ public class FileHandler {
             for (Record record : records) {
                 Insert.insert(leafLevel, record);
                 counter++;
-                if (counter == 1639){
+                //1639 to cause first split
+                //2398 to cause first reinsert
+                //2899 first reinsert for map2.osm
+                //3179 first split after reinsert
+                if (counter ==50 ){
                     File file2 = new File(IndexfilePath);
                     break;
                 }

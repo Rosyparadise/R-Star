@@ -54,9 +54,9 @@ public class Insert {
 
                 //HAVE TO CHANGE LATER, WORKS NOW CAUSE WE ONLY HAVE ROOT
                 if (blockId==1)
-                    Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),record, tempCurrentNoOfEntries == 0);
+                    Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),record, tempCurrentNoOfEntries == 0,false);
                 else
-                    ReadjustMBR.reAdjustRectangleBounds(blockId,parentPointer,record);
+                    ReadjustMBR.reAdjustRectangleBounds(blockId,parentPointer,record,false);
 
 
 
@@ -85,6 +85,7 @@ public class Insert {
 
     public static void overflowTreatment(int treeLevel,int blockid,Record troublemaker)
     {
+        System.out.println("overflow"  + troublemaker.getId());
         if (blockid!=overflowLevel)
         {
             overflow_first_time=true;
@@ -92,14 +93,19 @@ public class Insert {
         }
         if (treeLevel!=0 && overflow_first_time)
         {
+            System.out.println("reinsert");
             overflow_first_time=false;
+            System.out.println("\n\n\n");
+            FileHandler.readIndexFile();
+
             Split.reinsert(blockid,troublemaker);
             reinsert_just_ended=true;
         }
         else
         {
-            Split.split(blockid,troublemaker);
-            overflowLevel=-1;
+            System.out.println("split");
+            Split.split(blockid, troublemaker);
+            //overflowLevel = -1;
         }
     }
 }
