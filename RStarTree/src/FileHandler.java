@@ -24,7 +24,7 @@ public class FileHandler {
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
-    private static final int blockSize = 512; //32KB (KB=1024B)
+    private static final int blockSize = 512 ; //32KB (KB=1024B)
     private static final ArrayList<Record> records = new ArrayList<>();
 
     public static byte[] longToBytes(long x) {
@@ -351,7 +351,7 @@ public class FileHandler {
             int tempnoOfBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
             int tempLeafLevel = ByteBuffer.wrap(leafLevelArray).getInt();
 
-            System.out.println("Block size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks + "\nLeaf level: " + tempLeafLevel);
+            System.out.println("Block size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks + "\nLeaf level: " + tempLeafLevel + "\nNumber of blocks left: "+ (calculateMaxBlockRectangles()-tempnoOfBlocks) );
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -423,7 +423,7 @@ public class FileHandler {
                 //2398 to cause first reinsert
                 //2899 first reinsert for map2.osm
                 //3179 first split after reinsert
-                if (counter ==50 ){
+                if (counter ==200 ){
                     File file2 = new File(IndexfilePath);
                     break;
                 }

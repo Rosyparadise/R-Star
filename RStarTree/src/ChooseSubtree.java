@@ -91,6 +91,10 @@ public class ChooseSubtree {
                     temp = new double[dimensions][dimensions];
                 }
 
+                for (int i=0;i<IDs.length;i++)
+                {
+                    System.out.println("IDs  = " + IDs[i]);;
+                }
                 int result = Split.determine_best_insertion(rectangles, record);
                 return chooseSubtree(record, IDs[result]);
 

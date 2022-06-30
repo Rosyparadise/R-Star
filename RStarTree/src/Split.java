@@ -426,7 +426,7 @@ public class Split {
 
 
                     FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
-                    System.arraycopy(FileHandler.doubleToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
+                    System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
 
 
                     byte[] dataBlock1 = new byte[blockSize];
