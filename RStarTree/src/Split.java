@@ -472,6 +472,8 @@ public class Split {
                     indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() *blockSize);
                     indexfile.write(dataBlock2);
 
+                    int temp = blockId+1;
+                    System.out.println("Block id " + temp);
 
                     byte[] tempMetaData = FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks());
                     indexfile.seek(Integer.BYTES);

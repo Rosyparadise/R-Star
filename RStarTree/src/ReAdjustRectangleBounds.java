@@ -153,27 +153,46 @@ public class ReAdjustRectangleBounds {
                             System.arraycopy(dataBlock, bytecounter + 4 * Double.BYTES, childBlockIdArray, 0, Double.BYTES);
 
                             if (ByteBuffer.wrap(childBlockIdArray).getInt() == blockId) {
-                                System.arraycopy(dataBlock, bytecounter, minLatArray, 0, Double.BYTES);
-                                System.arraycopy(dataBlock, bytecounter + Double.BYTES, minLonArray, 0, Double.BYTES);
-                                System.arraycopy(dataBlock, bytecounter + 2 * Double.BYTES, maxLatArray, 0, Double.BYTES);
-                                System.arraycopy(dataBlock, bytecounter + 3 * Double.BYTES, maxLonArray, 0, Double.BYTES);
+                                // flag for indexfile edit to
+                                boolean indexfileEdit = false;
 
-                                if (!(ByteBuffer.wrap(minLatArray).getDouble() == minLat && ByteBuffer.wrap(maxLatArray).getDouble() == maxLat
-                                        && ByteBuffer.wrap(minLonArray).getDouble() == minLon && ByteBuffer.wrap(maxLonArray).getDouble() == maxLon)) {
-                                    System.arraycopy(FileHandler.doubleToBytes(minLat), 0, dataBlock, bytecounter, Double.BYTES);
-                                    System.arraycopy(FileHandler.doubleToBytes(minLon), 0, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
-                                    System.arraycopy(FileHandler.doubleToBytes(maxLat), 0, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
-                                    System.arraycopy(FileHandler.doubleToBytes(maxLon), 0, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
+                                if (minLat == 0.0 && minLon == 0.0 && maxLat == 0.0 && maxLon == 0.0) {
+                                    if (tempNoOfEntries == 2) {
+                                        System.arraycopy(FileHandler.doubleToBytes(0.0), 0, dataBlock, bytecounter, Double.BYTES);
+                                        System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
+                                        System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
+                                        System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
 
+                                        System.arraycopy(FileHandler.intToBytes(tempNoOfEntries - 1), 0, dataBlock, Integer.BYTES, Integer.BYTES);
+
+                                        FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() - 1);
+
+                                        indexfileEdit = true;
+                                    }
+                                } else {
+                                    System.arraycopy(dataBlock, bytecounter, minLatArray, 0, Double.BYTES);
+                                    System.arraycopy(dataBlock, bytecounter + Double.BYTES, minLonArray, 0, Double.BYTES);
+                                    System.arraycopy(dataBlock, bytecounter + 2 * Double.BYTES, maxLatArray, 0, Double.BYTES);
+                                    System.arraycopy(dataBlock, bytecounter + 3 * Double.BYTES, maxLonArray, 0, Double.BYTES);
+
+                                    if (!(ByteBuffer.wrap(minLatArray).getDouble() == minLat && ByteBuffer.wrap(maxLatArray).getDouble() == maxLat
+                                            && ByteBuffer.wrap(minLonArray).getDouble() == minLon && ByteBuffer.wrap(maxLonArray).getDouble() == maxLon)) {
+                                        System.arraycopy(FileHandler.doubleToBytes(minLat), 0, dataBlock, bytecounter, Double.BYTES);
+                                        System.arraycopy(FileHandler.doubleToBytes(minLon), 0, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
+                                        System.arraycopy(FileHandler.doubleToBytes(maxLat), 0, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
+                                        System.arraycopy(FileHandler.doubleToBytes(maxLon), 0, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
+
+                                        indexfileEdit = true;
+                                    }
+                                }
+
+                                if (indexfileEdit) {
                                     RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
 
                                     indexfile.seek((long) blockSize * parentBlockId);
                                     indexfile.write(dataBlock);
                                     indexfile.close();
-
-
                                     reAdjustRectangleBounds(parentBlockId, tempParentPointer);
-
                                 }
                                 break;
                             }

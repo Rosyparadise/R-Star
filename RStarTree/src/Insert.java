@@ -81,7 +81,7 @@ public class Insert {
 
     public static void overflowTreatment(int treeLevel,int blockid,Record troublemaker)
     {
-        System.out.println("overflow"  + troublemaker.getId());
+//        System.out.println("overflow"  + troublemaker.getId());
         if (treeLevel!=overflowLevel)
         {
             overflow_first_time=true;
@@ -89,23 +89,23 @@ public class Insert {
         }
         if (treeLevel!=0 && overflow_first_time)
         {
-            System.out.println("----------BEFORE REINSERT----------");
+//            System.out.println("----------BEFORE REINSERT----------");
             overflow_first_time=false;
-            FileHandler.readIndexFile();
+//            FileHandler.readIndexFile();
 
             Split.reinsert(blockid,troublemaker);
-            System.out.println("-----------AFTER REINSERT----------");
-            FileHandler.readIndexFile();
+//            System.out.println("-----------AFTER REINSERT----------");
+//            FileHandler.readIndexFile();
         }
         else
         {
-            System.out.println("----------BEFORE SPLIT----------");
-            FileHandler.readIndexFile();
+//            System.out.println("----------BEFORE SPLIT----------");
+//            FileHandler.readIndexFile();
 
-            System.out.println("split");
+//            System.out.println("split");
             Split.split(blockid, troublemaker);
-            System.out.println("-----------AFTER SPLIT----------");
-            FileHandler.readIndexFile();
+//            System.out.println("-----------AFTER SPLIT----------");
+//            FileHandler.readIndexFile();
 
             overflowLevel = -1;
         }

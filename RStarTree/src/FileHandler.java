@@ -24,7 +24,7 @@ public class FileHandler {
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
-    private static final int blockSize = 512 ; //32KB (KB=1024B)
+    private static final int blockSize = 32768 ; //32KB (KB=1024B) // 512
     private static final ArrayList<Record> records = new ArrayList<>();
 
     public static byte[] longToBytes(long x) {
@@ -423,10 +423,9 @@ public class FileHandler {
                 //2398 to cause first reinsert
                 //2899 first reinsert for map2.osm
                 //3179 first split after reinsert
-                if (counter ==200 ){
-                    File file2 = new File(IndexfilePath);
-                    break;
-                }
+//                if (counter == 1639){ // For delete testing
+//                    break;
+//                }
             }
         } catch (Exception e){
             e.printStackTrace();
@@ -456,7 +455,7 @@ public class FileHandler {
                 int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
 
                 if (tempLevel == leafLevel){
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", no of entries: " + tempCurrentNoOfEntries +
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of entries: " + tempCurrentNoOfEntries +
                             ", Parent block id: " + tempParentPointer + "\nRecords: ");
 
                     byte[] LATarray = new byte[Double.BYTES];
@@ -482,7 +481,8 @@ public class FileHandler {
                 }
                 else
                 {
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", Leaf level: " + leafLevel +
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of rectangles: " +
+                            tempCurrentNoOfEntries + ", Leaf level: " + leafLevel +
                             ", Parent block id: " + tempParentPointer + "\nRecords: ");
 
                     int bytecounter = 3 * Integer.BYTES;
@@ -502,8 +502,8 @@ public class FileHandler {
                         System.out.println();
                         pointsArray= new byte[2][dimensions][Double.BYTES];
                         bytecounter+=Integer.BYTES;
-
                     }
+                    System.out.println();
                 }
             }
         } catch (Exception e){
@@ -523,7 +523,7 @@ public class FileHandler {
         // Return the number of rectangles that a block can have, which is total block size minus the size of metadata
         // minus the left childpointer of the first rectangle (the first rectangle is the only one with two childpointers)
         // and all mod with rectangleInfoSize
-        System.out.println(blockSize + " " + metadataSize + " " + Integer.BYTES + " " + rectangleInfoSize);
+//        System.out.println(blockSize + " " + metadataSize + " " + Integer.BYTES + " " + rectangleInfoSize);
         return (blockSize - metadataSize) / rectangleInfoSize;
     }
 
@@ -598,4 +598,7 @@ public class FileHandler {
         FileHandler.leafLevel = leafLevel;
     }
 
+    public static Record getRecord(int id) {
+        return records.get(id);
+    }
 }
