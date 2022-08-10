@@ -58,9 +58,6 @@ public class Insert {
                 else
                     ReadjustMBR.reAdjustRectangleBounds(blockId,parentPointer,record,false);
 
-
-
-
                 tempCurrentNoOfEntries++;
                 indexfile.seek((long) blockId * blockSize + Integer.BYTES);
                 indexfile.write(FileHandler.intToBytes(tempCurrentNoOfEntries));
@@ -73,7 +70,6 @@ public class Insert {
             {
                 overflowTreatment(treeLevel,blockId,record);
             }
-
         } catch (Exception e){
             e.printStackTrace();
         }

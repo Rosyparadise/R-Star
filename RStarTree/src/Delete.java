@@ -5,7 +5,7 @@ import java.nio.file.Files;
 import java.util.ArrayList;
 
 public class Delete {
-    private static final int minEntries = FileHandler.calculateMaxBlockNodes() * 40 / 100; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100
+    private static final int minEntries = FileHandler.calculateMaxBlockNodes() * 40 / 100; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100 | 969
 
     public static boolean delete(double LAT, double LON, int blockId) {
         try {
@@ -102,6 +102,7 @@ public class Delete {
                             for (Record record: nodesToReInstert) {
                                 Insert.insert(leafLevel, record);
                             }
+                            // TODO metadata totnoofblocks
                         }
 
                         return true;

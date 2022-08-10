@@ -11,6 +11,8 @@ import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class FileHandler {
     private static int root=-1;
@@ -24,8 +26,9 @@ public class FileHandler {
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
-    private static final int blockSize = 32768 ; //32KB (KB=1024B) // 512
+    private static final int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
     private static final ArrayList<Record> records = new ArrayList<>();
+    private static Queue<Integer> emptyBlocks = new LinkedList<>();
 
     public static byte[] longToBytes(long x) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
@@ -431,80 +434,91 @@ public class FileHandler {
             e.printStackTrace();
         }
     }
-
-    public static void readIndexFile(){
+    
+    public static void readIndexFile() {
         try {
             File file = new File(IndexfilePath);
             byte[] bytes = Files.readAllBytes(file.toPath());
-            // for each block in index file other than the metadata block
-            for (int i = 1; i < noOfIndexfileBlocks+1; i++){
-                byte[] block = new byte[blockSize];
-                System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
+            if (noOfIndexfileBlocks > 1) {
+                Queue<Integer> pointers = new LinkedList<>();
+                pointers.add(1);
 
-                // read the metadata
-                byte[] level = new byte[Integer.BYTES];
-                byte[] currentNoOfEntries = new byte[Integer.BYTES];
-                byte[] parentPointer = new byte[Integer.BYTES];
+                while (!pointers.isEmpty()) {
+                    int i = pointers.peek();
 
-                System.arraycopy(block, 0, level, 0, Integer.BYTES);
-                System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
-                System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
+                    byte[] block = new byte[blockSize];
+                    System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
 
-                int tempLevel = ByteBuffer.wrap(level).getInt();
-                int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
-                int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
+                    // read the metadata
+                    byte[] level = new byte[Integer.BYTES];
+                    byte[] currentNoOfEntries = new byte[Integer.BYTES];
+                    byte[] parentPointer = new byte[Integer.BYTES];
 
-                if (tempLevel == leafLevel){
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of entries: " + tempCurrentNoOfEntries +
-                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
+                    System.arraycopy(block, 0, level, 0, Integer.BYTES);
+                    System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+                    System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
 
-                    byte[] LATarray = new byte[Double.BYTES];
-                    byte[] LONarray = new byte[Double.BYTES];
-                    byte[] RecordIdArray = new byte[Integer.BYTES];
-                    int bytecounter = 3 * Integer.BYTES;
+                    int tempLevel = ByteBuffer.wrap(level).getInt();
+                    int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+                    int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
 
-                    for (int j = 0; j < tempCurrentNoOfEntries; j++){
-                        System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+                    if (tempLevel == leafLevel){
+                        System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of entries: " + tempCurrentNoOfEntries +
+                                ", Parent block id: " + tempParentPointer + "\nRecords: ");
 
-                        System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
-                        System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
-                        bytecounter += 2 * Double.BYTES + Integer.BYTES;
+                        byte[] LATarray = new byte[Double.BYTES];
+                        byte[] LONarray = new byte[Double.BYTES];
+                        byte[] RecordIdArray = new byte[Integer.BYTES];
+                        int bytecounter = 3 * Integer.BYTES;
 
-                        double LAT = ByteBuffer.wrap(LATarray).getDouble();
-                        double LON = ByteBuffer.wrap(LONarray).getDouble();
-                        int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
+                        for (int j = 0; j < tempCurrentNoOfEntries; j++){
+                            System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+                            System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
+                            System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
+                            bytecounter += 2 * Double.BYTES + Integer.BYTES;
 
-                        System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId+ ", Datafile block: " +
-                                records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
-                                records.get(recordId).getRecordLocation().getSlot());
-                    }
-                }
-                else
-                {
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of rectangles: " +
-                            tempCurrentNoOfEntries + ", Leaf level: " + leafLevel +
-                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
+                            double LAT = ByteBuffer.wrap(LATarray).getDouble();
+                            double LON = ByteBuffer.wrap(LONarray).getDouble();
+                            int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
 
-                    int bytecounter = 3 * Integer.BYTES;
-                    byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
-
-                    for (int j=0;j < tempCurrentNoOfEntries; j++)
-                    {
-                        for (int k=0;k<2;k++)
-                        {
-                            for (int c=0;c<dimensions;c++)
-                            {
-                                System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
-                                bytecounter+=Double.BYTES;
-                                System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
-                            }
+                            System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId+ ", Datafile block: " +
+                                    records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
+                                    records.get(recordId).getRecordLocation().getSlot());
                         }
                         System.out.println();
-                        pointsArray= new byte[2][dimensions][Double.BYTES];
-                        bytecounter+=Integer.BYTES;
                     }
-                    System.out.println();
+                    else
+                    {
+                        System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of rectangles: " +
+                                tempCurrentNoOfEntries + ", Leaf level: " + leafLevel +
+                                ", Parent block id: " + tempParentPointer + "\nRecords: ");
+
+                        int bytecounter = 3 * Integer.BYTES;
+                        byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
+                        byte[] childPointer = new byte[Integer.BYTES];
+
+                        for (int j=0;j < tempCurrentNoOfEntries; j++)
+                        {
+                            for (int k=0;k<2;k++)
+                            {
+                                for (int c=0;c<dimensions;c++)
+                                {
+                                    System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
+                                    bytecounter+=Double.BYTES;
+                                    System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
+                                }
+                            }
+                            System.out.println();
+                            pointsArray= new byte[2][dimensions][Double.BYTES];
+                            System.arraycopy(block, bytecounter, childPointer, 0, Integer.BYTES);
+                            pointers.add(ByteBuffer.wrap(childPointer).getInt());
+                            bytecounter+=Integer.BYTES;
+                        }
+                        System.out.println();
+                    }
+                    pointers.remove();
                 }
+
             }
         } catch (Exception e){
             e.printStackTrace();
@@ -600,5 +614,13 @@ public class FileHandler {
 
     public static Record getRecord(int id) {
         return records.get(id);
+    }
+
+    public static Queue<Integer> getEmptyBlocks() {
+        return emptyBlocks;
+    }
+
+    public static void setEmptyBlocks(Queue<Integer> emptyBlocks) {
+        FileHandler.emptyBlocks = emptyBlocks;
     }
 }

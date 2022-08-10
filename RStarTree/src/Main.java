@@ -26,16 +26,19 @@ public class Main {
             }
             System.out.println();
         }
+
 //        FileHandler.readFirstIndexfileBlock();
-//        FileHandler.readIndexFile();
+        FileHandler.readIndexFile();
         // read indexfile metadata (first block)
 
         // delete
-        double LAT = 39.6877864;
-        double LON = 20.8362292;
-        FileHandler.delete(LAT, LON);
+//        double LAT = 39.7160812; // 39.6877864
+//        double LON = 20.6005205; // 20.8362292
+//        FileHandler.delete(LAT, LON);
+//
+//        FileHandler.readIndexFile();
 
-        FileHandler.readIndexFile();
+//        RangeQuery.rangeQuery();
     }
 }
 

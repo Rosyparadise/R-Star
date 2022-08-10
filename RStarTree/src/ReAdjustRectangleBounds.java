@@ -2,6 +2,7 @@ import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
+import java.util.Queue;
 
 public class ReAdjustRectangleBounds {
 
@@ -157,18 +158,39 @@ public class ReAdjustRectangleBounds {
                                 boolean indexfileEdit = false;
 
                                 if (minLat == 0.0 && minLon == 0.0 && maxLat == 0.0 && maxLon == 0.0) {
-                                    if (tempNoOfEntries == 2) {
-                                        System.arraycopy(FileHandler.doubleToBytes(0.0), 0, dataBlock, bytecounter, Double.BYTES);
-                                        System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
-                                        System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
-                                        System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
+                                    int offset = (tempNoOfEntries - 1 - i) * (2 * FileHandler.getDimensions() * Double.BYTES + Integer.BYTES);
 
-                                        System.arraycopy(FileHandler.intToBytes(tempNoOfEntries - 1), 0, dataBlock, Integer.BYTES, Integer.BYTES);
+                                    // save the id of the block that gets deleted and add it in the emptyBlocks Queue of Filehandler
+                                    byte [] childPointer = new byte[Integer.BYTES];
+                                    System.arraycopy(dataBlock, bytecounter + 4 * Double.BYTES, childPointer, 0, Integer.BYTES);
+                                    Queue<Integer> emptyBlocks = FileHandler.getEmptyBlocks();
+                                    emptyBlocks.add(ByteBuffer.wrap(childPointer).getInt());
+                                    FileHandler.setEmptyBlocks(emptyBlocks);
 
-                                        FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() - 1);
-
-                                        indexfileEdit = true;
+                                    // swap with last one if it's not the last one already
+                                    if (i != tempNoOfEntries - 1) {
+                                        System.arraycopy(dataBlock, bytecounter + offset, dataBlock, bytecounter, Double.BYTES);
+                                        System.arraycopy(dataBlock, bytecounter + offset + Double.BYTES, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
+                                        System.arraycopy(dataBlock, bytecounter + offset + 2 * Double.BYTES, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
+                                        System.arraycopy(dataBlock, bytecounter + offset + 3 * Double.BYTES, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
+                                        System.arraycopy(dataBlock, bytecounter + offset + 4 * Double.BYTES, dataBlock, bytecounter + 4 * Double.BYTES, Integer.BYTES);
                                     }
+
+                                    // empty the last rectangle data
+                                    System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + offset, Double.BYTES);
+                                    System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + offset + Double.BYTES, Double.BYTES);
+                                    System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + offset + 2 * Double.BYTES, Double.BYTES);
+                                    System.arraycopy(new byte[Double.BYTES], 0, dataBlock, bytecounter + offset + 3 * Double.BYTES, Double.BYTES);
+                                    System.arraycopy(new byte[Integer.BYTES], 0, dataBlock, bytecounter + offset + 4 * Double.BYTES, Integer.BYTES);
+
+                                    // decrease the number of rectangles in the block by one
+                                    System.arraycopy(FileHandler.intToBytes(tempNoOfEntries - 1), 0, dataBlock, Integer.BYTES, Integer.BYTES);
+
+                                    // decrease the number of total rectangles in the tree
+                                    FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() - 1);
+
+                                    tempNoOfEntries--;
+                                    indexfileEdit = true;
                                 } else {
                                     System.arraycopy(dataBlock, bytecounter, minLatArray, 0, Double.BYTES);
                                     System.arraycopy(dataBlock, bytecounter + Double.BYTES, minLonArray, 0, Double.BYTES);
@@ -186,6 +208,7 @@ public class ReAdjustRectangleBounds {
                                     }
                                 }
 
+                                // if the data in the tree are edited, rewrite the block
                                 if (indexfileEdit) {
                                     RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
 

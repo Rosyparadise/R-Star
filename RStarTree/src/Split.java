@@ -352,11 +352,11 @@ public class Split {
                     counter2 += Integer.BYTES;
                 }
                 RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
-                indexfile.seek((long) (FileHandler.getNoOfIndexfileBlocks() - 2) *blockSize);
+                indexfile.seek((long) (FileHandler.getNoOfIndexfileBlocks() - 2) * blockSize);
                 indexfile.write(dataBlock);
-                indexfile.seek((long) (FileHandler.getNoOfIndexfileBlocks() - 1) *blockSize);
+                indexfile.seek((long) (FileHandler.getNoOfIndexfileBlocks() - 1) * blockSize);
                 indexfile.write(dataBlock1);
-                indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() *blockSize);
+                indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() * blockSize);
                 indexfile.write(dataBlock2);
                 //System.out.println("health x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
 
@@ -374,15 +374,10 @@ public class Split {
             catch (IOException e) {
                 e.printStackTrace();
             }
-
-
-
         }
         else
         {
-
             try {
-
                 byte[] bytes = Files.readAllBytes(file.toPath());
                 byte[] dataBlock = new byte[blockSize];
                 System.arraycopy(bytes, parentPointer*blockSize,dataBlock,0,blockSize);
@@ -390,8 +385,6 @@ public class Split {
                 System.arraycopy(dataBlock,Integer.BYTES,noOfEntries,0,Integer.BYTES);
                 if (FileHandler.calculateMaxBlockRectangles()-ByteBuffer.wrap(noOfEntries).getInt()>0)
                 {
-
-
                     int bytecounter = 3 * Integer.BYTES;
 
                     outer: for (int i = 0; i < ByteBuffer.wrap(noOfEntries).getInt(); i++)
@@ -424,10 +417,12 @@ public class Split {
                         }
                     }
 
-
                     FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
-                    System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
-
+                    if (FileHandler.getEmptyBlocks().isEmpty()) {
+                        System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
+                    } else {
+                        System.arraycopy(FileHandler.intToBytes(FileHandler.getEmptyBlocks().peek()), 0, dataBlock, bytecounter, Integer.BYTES);
+                    }
 
                     byte[] dataBlock1 = new byte[blockSize];
                     System.arraycopy(FileHandler.intToBytes(FileHandler.getLeafLevel()),0,dataBlock1,0,Integer.BYTES);
@@ -469,7 +464,12 @@ public class Split {
                     indexfile.write(dataBlock);
                     indexfile.seek((long) blockId *blockSize);
                     indexfile.write(dataBlock1);
-                    indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() *blockSize);
+
+                    if (FileHandler.getEmptyBlocks().isEmpty()) {
+                        indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() * blockSize);
+                    } else {
+                        indexfile.seek((long) FileHandler.getEmptyBlocks().remove() * blockSize);
+                    }
                     indexfile.write(dataBlock2);
 
                     int temp = blockId+1;
@@ -497,7 +497,6 @@ public class Split {
         {
             ArrayList<Record> firstTemp = new ArrayList<>();
             ArrayList<Record> secondTemp = new ArrayList<>();
-
 
             for (int l=0;l<(int)Math.floor(m*FileHandler.calculateMaxBlockNodes()-1)+k;l++)
                 firstTemp.add(axisLeastMargin.get(l));
