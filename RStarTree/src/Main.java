@@ -13,19 +13,18 @@ public class Main {
 
         // create indexfile
         FileHandler.createIndexFile();
-
         // read indexfile
-        System.out.println();
-        System.out.println();
-        System.out.println("root");
-        for (int i=0;i<4;i++)
-        {
-            for (int j=0;j<2;j++)
-            {
-                System.out.print(FileHandler.getRootMBR()[i][j]+ " ");
-            }
-            System.out.println();
-        }
+//        System.out.println();
+//        System.out.println();
+//        System.out.println("root");
+//        for (int i=0;i<4;i++)
+//        {
+//            for (int j=0;j<2;j++)
+//            {
+//                System.out.print(FileHandler.getRootMBR()[i][j]+ " ");
+//            }
+//            System.out.println();
+//        }
 
 //        FileHandler.readFirstIndexfileBlock();
         FileHandler.readIndexFile();
@@ -34,11 +33,13 @@ public class Main {
         // delete
 //        double LAT = 39.7160812; // 39.6877864
 //        double LON = 20.6005205; // 20.8362292
-//        FileHandler.delete(LAT, LON);
+//        Delete.delete(LAT, LON);
 //
 //        FileHandler.readIndexFile();
 
-//        RangeQuery.rangeQuery();
+//        RangeQuery rangeQuery = new RangeQuery();
+//        KnnQuery knnQuery = new KnnQuery();
+//        SkylineQuery skylineQuery = new SkylineQuery();
     }
 }
 

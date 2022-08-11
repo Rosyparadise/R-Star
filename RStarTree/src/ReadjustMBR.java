@@ -102,7 +102,7 @@ public class ReadjustMBR
                     {
                         for (int j=0;j<rectangle[0].length;j++)
                         {
-                            System.arraycopy(FileHandler.doubleToBytes(rectangle[i][j]), 0,dataBlock,bytecounter,Double.BYTES);
+                            System.arraycopy(ConversionToBytes.doubleToBytes(rectangle[i][j]), 0,dataBlock,bytecounter,Double.BYTES);
                             bytecounter+=Double.BYTES;
                         }
                     }

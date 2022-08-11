@@ -17,7 +17,6 @@ public class Record {
         this.LAT = LAT;
         this.LON = LON;
         this.id = id;
-
     }
 
     public RecordLocation getRecordLocation(){

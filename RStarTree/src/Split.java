@@ -73,18 +73,18 @@ public class Split {
 
             byte[] newBlock = new byte[blockSize];
             System.arraycopy(treeLevelBytes, 0, newBlock, 0, Integer.BYTES);
-            System.arraycopy(FileHandler.intToBytes(tempRecords.size()-toReinsert.size()), 0, newBlock, Integer.BYTES, Integer.BYTES);
+            System.arraycopy(ConversionToBytes.intToBytes(tempRecords.size()-toReinsert.size()), 0, newBlock, Integer.BYTES, Integer.BYTES);
             System.arraycopy(parentPointerArray, 0, newBlock, Integer.BYTES*2, Integer.BYTES);
             bytecounter=Integer.BYTES*3;
             ArrayList<Record> remaining = new ArrayList<>();
 
             for (int i=toReinsert.size();i<tempRecords.size();i++)
             {
-                System.arraycopy(FileHandler.doubleToBytes(tempRecords.get(i).getLAT()), 0, newBlock, bytecounter, Double.BYTES);
+                System.arraycopy(ConversionToBytes.doubleToBytes(tempRecords.get(i).getLAT()), 0, newBlock, bytecounter, Double.BYTES);
                 bytecounter+=Double.BYTES;
-                System.arraycopy(FileHandler.doubleToBytes(tempRecords.get(i).getLON()), 0, newBlock, bytecounter, Double.BYTES);
+                System.arraycopy(ConversionToBytes.doubleToBytes(tempRecords.get(i).getLON()), 0, newBlock, bytecounter, Double.BYTES);
                 bytecounter+=Double.BYTES;
-                System.arraycopy(FileHandler.intToBytes(tempRecords.get(i).getId()), 0, newBlock, bytecounter, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(tempRecords.get(i).getId()), 0, newBlock, bytecounter, Integer.BYTES);
                 bytecounter+=Integer.BYTES;
                 remaining.add(tempRecords.get(i));
             }
@@ -286,20 +286,20 @@ public class Split {
                 byte[] bytes = Files.readAllBytes(file.toPath());
                 byte[] dataBlock = new byte[blockSize];
                 System.arraycopy(bytes, blockId*blockSize,dataBlock,0,Integer.BYTES);
-                System.arraycopy(FileHandler.intToBytes(2),0,dataBlock,Integer.BYTES,Integer.BYTES);
-                System.arraycopy(FileHandler.intToBytes(-1),0,dataBlock,Integer.BYTES*2,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(2),0,dataBlock,Integer.BYTES,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(-1),0,dataBlock,Integer.BYTES*2,Integer.BYTES);
                 int counter = 3 * Integer.BYTES;
 
                 for (int i=0;i<Math.pow(2,dimensions);i+=Math.pow(2,dimensions)-1)
                 {
                     for (int j=0;j<dimensions;j++)
                     {
-                        System.arraycopy(FileHandler.doubleToBytes(firstMBR[i][j]), 0,dataBlock,counter,Double.BYTES);
+                        System.arraycopy(ConversionToBytes.doubleToBytes(firstMBR[i][j]), 0,dataBlock,counter,Double.BYTES);
                         counter+=Double.BYTES;
                     }
                 }
                 FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
-                System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()),0,dataBlock,counter,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks()),0,dataBlock,counter,Integer.BYTES);
                 counter+=Integer.BYTES;
 
 
@@ -308,17 +308,17 @@ public class Split {
 
                 byte[] dataBlock1 = new byte[blockSize];
 
-                System.arraycopy(FileHandler.intToBytes(leafLevel), 0,dataBlock1,0,Integer.BYTES);
-                System.arraycopy(FileHandler.intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
-                System.arraycopy(FileHandler.intToBytes(blockId), 0, dataBlock1, 2 * Integer.BYTES, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(leafLevel), 0,dataBlock1,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(blockId), 0, dataBlock1, 2 * Integer.BYTES, Integer.BYTES);
 
                 int counter1 = 3 * Integer.BYTES;
                 for (Record record : first) {
-                    System.arraycopy(FileHandler.doubleToBytes(record.getLAT()), 0, dataBlock1, counter1, Double.BYTES);
+                    System.arraycopy(ConversionToBytes.doubleToBytes(record.getLAT()), 0, dataBlock1, counter1, Double.BYTES);
                     counter1 += Double.BYTES;
-                    System.arraycopy(FileHandler.doubleToBytes(record.getLON()), 0, dataBlock1, counter1, Double.BYTES);
+                    System.arraycopy(ConversionToBytes.doubleToBytes(record.getLON()), 0, dataBlock1, counter1, Double.BYTES);
                     counter1 += Double.BYTES;
-                    System.arraycopy(FileHandler.intToBytes(record.getId()), 0, dataBlock1, counter1, Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(record.getId()), 0, dataBlock1, counter1, Integer.BYTES);
                     counter1 += Integer.BYTES;
                 }
 
@@ -326,28 +326,28 @@ public class Split {
                 {
                     for (int j=0;j<dimensions;j++)
                     {
-                        System.arraycopy(FileHandler.doubleToBytes(secondMBR[i][j]), 0,dataBlock,counter,Double.BYTES);
+                        System.arraycopy(ConversionToBytes.doubleToBytes(secondMBR[i][j]), 0,dataBlock,counter,Double.BYTES);
                         counter+=Double.BYTES;
                     }
 
                 }
                 FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
-                System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()),0,dataBlock,counter,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks()),0,dataBlock,counter,Integer.BYTES);
 
 
                 byte[] dataBlock2 = new byte[blockSize];
 
-                System.arraycopy(FileHandler.intToBytes(leafLevel), 0,dataBlock2,0,Integer.BYTES);
-                System.arraycopy(FileHandler.intToBytes(second.size()),0,dataBlock2,Integer.BYTES,Integer.BYTES);
-                System.arraycopy(FileHandler.intToBytes(blockId), 0, dataBlock2, 2 * Integer.BYTES, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(leafLevel), 0,dataBlock2,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(second.size()),0,dataBlock2,Integer.BYTES,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(blockId), 0, dataBlock2, 2 * Integer.BYTES, Integer.BYTES);
 
                 int counter2 = 3 * Integer.BYTES;
                 for (Record record : second) {
-                    System.arraycopy(FileHandler.doubleToBytes(record.getLAT()), 0, dataBlock2, counter2, Double.BYTES);
+                    System.arraycopy(ConversionToBytes.doubleToBytes(record.getLAT()), 0, dataBlock2, counter2, Double.BYTES);
                     counter2 += Double.BYTES;
-                    System.arraycopy(FileHandler.doubleToBytes(record.getLON()), 0, dataBlock2, counter2, Double.BYTES);
+                    System.arraycopy(ConversionToBytes.doubleToBytes(record.getLON()), 0, dataBlock2, counter2, Double.BYTES);
                     counter2 += Double.BYTES;
-                    System.arraycopy(FileHandler.intToBytes(record.getId()), 0, dataBlock2, counter2, Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(record.getId()), 0, dataBlock2, counter2, Integer.BYTES);
 
                     counter2 += Integer.BYTES;
                 }
@@ -361,10 +361,10 @@ public class Split {
                 //System.out.println("health x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
 
 
-                byte[] tempMetaData = FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks());
+                byte[] tempMetaData = ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks());
                 indexfile.seek(Integer.BYTES);
                 indexfile.write(tempMetaData);
-                tempMetaData = FileHandler.intToBytes(leafLevel);
+                tempMetaData = ConversionToBytes.intToBytes(leafLevel);
                 indexfile.seek(Integer.BYTES*2);
                 indexfile.write(tempMetaData);
 
@@ -397,7 +397,7 @@ public class Split {
                             for (int j=0;j<Math.pow(2,dimensions);j+=Math.pow(2,dimensions)-1)
                             {
                                 for (int k=0;k<dimensions;k++){
-                                    System.arraycopy(FileHandler.doubleToBytes(firstMBR[j][k]), 0, dataBlock, bytecounter, Double.BYTES);
+                                    System.arraycopy(ConversionToBytes.doubleToBytes(firstMBR[j][k]), 0, dataBlock, bytecounter, Double.BYTES);
                                     bytecounter += Double.BYTES;
                                 }
                             }
@@ -412,51 +412,51 @@ public class Split {
                     {
                         for (int k=0;k<dimensions;k++){
 
-                            System.arraycopy(FileHandler.doubleToBytes(secondMBR[j][k]), 0, dataBlock, bytecounter, Double.BYTES);
+                            System.arraycopy(ConversionToBytes.doubleToBytes(secondMBR[j][k]), 0, dataBlock, bytecounter, Double.BYTES);
                             bytecounter += Double.BYTES;
                         }
                     }
 
                     FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
                     if (FileHandler.getEmptyBlocks().isEmpty()) {
-                        System.arraycopy(FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
+                        System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
                     } else {
-                        System.arraycopy(FileHandler.intToBytes(FileHandler.getEmptyBlocks().peek()), 0, dataBlock, bytecounter, Integer.BYTES);
+                        System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getEmptyBlocks().peek()), 0, dataBlock, bytecounter, Integer.BYTES);
                     }
 
                     byte[] dataBlock1 = new byte[blockSize];
-                    System.arraycopy(FileHandler.intToBytes(FileHandler.getLeafLevel()),0,dataBlock1,0,Integer.BYTES);
-                    System.arraycopy(FileHandler.intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
-                    System.arraycopy(FileHandler.intToBytes(parentPointer),0,dataBlock1,Integer.BYTES*2,Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()),0,dataBlock1,0,Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(parentPointer),0,dataBlock1,Integer.BYTES*2,Integer.BYTES);
 
 
                     int counter1 = 3 * Integer.BYTES;
                     for (Record record : first) {
-                        System.arraycopy(FileHandler.doubleToBytes(record.getLAT()), 0, dataBlock1, counter1, Double.BYTES);
+                        System.arraycopy(ConversionToBytes.doubleToBytes(record.getLAT()), 0, dataBlock1, counter1, Double.BYTES);
                         counter1 += Double.BYTES;
-                        System.arraycopy(FileHandler.doubleToBytes(record.getLON()), 0, dataBlock1, counter1, Double.BYTES);
+                        System.arraycopy(ConversionToBytes.doubleToBytes(record.getLON()), 0, dataBlock1, counter1, Double.BYTES);
                         counter1 += Double.BYTES;
-                        System.arraycopy(FileHandler.intToBytes(record.getId()), 0, dataBlock1, counter1, Integer.BYTES);
+                        System.arraycopy(ConversionToBytes.intToBytes(record.getId()), 0, dataBlock1, counter1, Integer.BYTES);
                         counter1 += Integer.BYTES;
                     }
 
                     byte[] dataBlock2 = new byte[blockSize];
-                    System.arraycopy(FileHandler.intToBytes(leafLevel), 0,dataBlock2,0,Integer.BYTES);
-                    System.arraycopy(FileHandler.intToBytes(second.size()),0,dataBlock2,Integer.BYTES,Integer.BYTES);
-                    System.arraycopy(FileHandler.intToBytes(parentPointer), 0, dataBlock2, 2 * Integer.BYTES, Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(leafLevel), 0,dataBlock2,0,Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(second.size()),0,dataBlock2,Integer.BYTES,Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(parentPointer), 0, dataBlock2, 2 * Integer.BYTES, Integer.BYTES);
 
                     int counter2 = 3 * Integer.BYTES;
                     for (Record record : second) {
-                        System.arraycopy(FileHandler.doubleToBytes(record.getLAT()), 0, dataBlock2, counter2, Double.BYTES);
+                        System.arraycopy(ConversionToBytes.doubleToBytes(record.getLAT()), 0, dataBlock2, counter2, Double.BYTES);
                         counter2 += Double.BYTES;
-                        System.arraycopy(FileHandler.doubleToBytes(record.getLON()), 0, dataBlock2, counter2, Double.BYTES);
+                        System.arraycopy(ConversionToBytes.doubleToBytes(record.getLON()), 0, dataBlock2, counter2, Double.BYTES);
                         counter2 += Double.BYTES;
-                        System.arraycopy(FileHandler.intToBytes(record.getId()), 0, dataBlock2, counter2, Integer.BYTES);
+                        System.arraycopy(ConversionToBytes.intToBytes(record.getId()), 0, dataBlock2, counter2, Integer.BYTES);
 
                         counter2 += Integer.BYTES;
                     }
 
-                    System.arraycopy(FileHandler.intToBytes(ByteBuffer.wrap(noOfEntries).getInt()+1),0,dataBlock,Integer.BYTES,Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(ByteBuffer.wrap(noOfEntries).getInt()+1),0,dataBlock,Integer.BYTES,Integer.BYTES);
 
 
                     RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
@@ -475,7 +475,7 @@ public class Split {
                     int temp = blockId+1;
                     System.out.println("Block id " + temp);
 
-                    byte[] tempMetaData = FileHandler.intToBytes(FileHandler.getNoOfIndexfileBlocks());
+                    byte[] tempMetaData = ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks());
                     indexfile.seek(Integer.BYTES);
                     indexfile.write(tempMetaData);
 

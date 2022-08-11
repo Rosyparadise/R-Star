@@ -7,7 +7,20 @@ import java.util.ArrayList;
 public class Delete {
     private static final int minEntries = FileHandler.calculateMaxBlockNodes() * 40 / 100; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100 | 969
 
-    public static boolean delete(double LAT, double LON, int blockId) {
+    public static void delete(double LAT, double LON)
+    {
+        boolean result = delete(LAT, LON, 1);
+        if (result)
+        {
+            System.out.println("The node with LAT: " + LAT + ", and LON: " + LON + ", was successfully deleted.");
+        }
+        else
+        {
+            System.out.println("The node with the given coordinates didn't get found.");
+        }
+    }
+
+    private static boolean delete(double LAT, double LON, int blockId) {
         try {
             int blockSize = FileHandler.getBlockSize();
             int leafLevel = FileHandler.getLeafLevel();
@@ -56,7 +69,7 @@ public class Delete {
 
                         // decrease the noOfEntries
                         tempNoOfEntries--;
-                        System.arraycopy(FileHandler.intToBytes(tempNoOfEntries), 0, dataBlock, Integer.BYTES, Integer.BYTES);
+                        System.arraycopy(ConversionToBytes.intToBytes(tempNoOfEntries), 0, dataBlock, Integer.BYTES, Integer.BYTES);
 
                         RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
 

@@ -45,9 +45,9 @@ public class Insert {
                 int ByteToWrite = 3 * Integer.BYTES + tempCurrentNoOfEntries * (2 * Double.BYTES + Integer.BYTES) + blockId * blockSize;
                 byte[] datablock = new byte[2 * Double.BYTES + Integer.BYTES];
 
-                System.arraycopy(FileHandler.doubleToBytes(record.getLAT()), 0, datablock, 0, Double.BYTES);
-                System.arraycopy(FileHandler.doubleToBytes(record.getLON()), 0, datablock, Double.BYTES, Double.BYTES);
-                System.arraycopy(FileHandler.intToBytes(record.getId()), 0, datablock, 2 * Double.BYTES, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.doubleToBytes(record.getLAT()), 0, datablock, 0, Double.BYTES);
+                System.arraycopy(ConversionToBytes.doubleToBytes(record.getLON()), 0, datablock, Double.BYTES, Double.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(record.getId()), 0, datablock, 2 * Double.BYTES, Integer.BYTES);
 
                 indexfile.seek(ByteToWrite);
                 indexfile.write(datablock);
@@ -60,7 +60,7 @@ public class Insert {
 
                 tempCurrentNoOfEntries++;
                 indexfile.seek((long) blockId * blockSize + Integer.BYTES);
-                indexfile.write(FileHandler.intToBytes(tempCurrentNoOfEntries));
+                indexfile.write(ConversionToBytes.intToBytes(tempCurrentNoOfEntries));
                 if (FileHandler.getRoot() ==-1)
                     FileHandler.setRoot(blockSize);
 

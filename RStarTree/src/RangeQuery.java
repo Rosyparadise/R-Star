@@ -1,136 +1,85 @@
-import java.io.File;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
 import java.util.*;
 
-public class RangeQuery extends Query {
-    private static double minLat, minLon, maxLat, maxLon;
+public class RangeQuery {
+    private double minLat, minLon, maxLat, maxLon;
+    private final ArrayList<Record> result;
+    private final Queue<Integer> pointers;
 
-    public static void rangeQuery() {
+    RangeQuery() {
 //        getUserInput();
         minLat = 39.7160812;
         minLon = 20.5650812;
         maxLat = 39.8955962;
         maxLon = 20.6217563;
-
-        ArrayList<Record> result = new ArrayList<>();
+        result = new ArrayList<>();
+        pointers = new LinkedList<>();
+        this.rangeQuery();
+    }
+    private void rangeQuery() {
         try {
-            Queue<Integer> pointers = new LinkedList<>();
-            int blockSize = FileHandler.getBlockSize();
-            int dimensions = FileHandler.getDimensions();
-
-            File file = new File(FileHandler.getIndexfilePath());
-            byte[] bytes = Files.readAllBytes(file.toPath());
-
             if (FileHandler.getNoOfIndexfileBlocks() > 1) {
                 pointers.add(1);
+                int blockId, level;
 
                 while (!pointers.isEmpty()) {
-                    byte[] block = new byte[blockSize];
-                    System.arraycopy(bytes, pointers.peek() * blockSize, block, 0, blockSize);
+                    blockId = pointers.peek();
+                    level = FileHandler.getMetaDataOfRectangle(blockId).get(0);
 
-                    byte[] level = new byte[Integer.BYTES];
-                    byte[] currentNoOfEntries = new byte[Integer.BYTES];
-                    byte[] parentPointer = new byte[Integer.BYTES];
+                    if (level != FileHandler.getLeafLevel()){
+                        ArrayList<Rectangle> rectangles = FileHandler.getRectangleEntries(blockId);
 
-                    System.arraycopy(block, 0, level, 0, Integer.BYTES);
-                    System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
-                    System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
-
-                    int tempLevel = ByteBuffer.wrap(level).getInt();
-                    int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
-
-                    if (tempLevel == FileHandler.getLeafLevel()) {
-                        byte[] LATarray = new byte[Double.BYTES];
-                        byte[] LONarray = new byte[Double.BYTES];
-                        byte[] RecordIdArray = new byte[Integer.BYTES];
-                        int bytecounter = 3 * Integer.BYTES;
-
-                        for (int j = 0; j < tempCurrentNoOfEntries; j++){
-                            System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
-                            System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
-                            System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
-                            bytecounter += 2 * Double.BYTES + Integer.BYTES;
-
-                            double LAT = ByteBuffer.wrap(LATarray).getDouble();
-                            double LON = ByteBuffer.wrap(LONarray).getDouble();
-                            int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
-
-                            if (minLat <= LAT && LAT <= maxLat && minLon <= LON && LON <= maxLon) {
-                                Record record = new Record(LAT, LON,
-                                        FileHandler.getRecord(recordId).getRecordLocation().getBlock(),
-                                        FileHandler.getRecord(recordId).getRecordLocation().getSlot(),
-                                        recordId);
-                                result.add(record);
+                        for (Rectangle rectangle: rectangles) {
+                            if (rectangle.getMinLAT() <= maxLat &&
+                                    rectangle.getMaxLAT() >= minLat &&
+                                    rectangle.getMinLON() <= maxLon &&
+                                    rectangle.getMaxLON() >= minLon) {
+                                pointers.add(rectangle.getChildPointer());
                             }
                         }
                     } else {
-                        int bytecounter = 3 * Integer.BYTES;
-                        byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
-                        byte[] childPointer = new byte[Integer.BYTES];
+                        ArrayList<Record> records = FileHandler.getRecords(blockId);
 
-                        Double rectMinLat, rectMinLon, rectMaxLat, rectMaxLon;
-                        rectMinLat = rectMinLon = rectMaxLat = rectMaxLon = 0.0;
-
-                        for (int j=0;j < tempCurrentNoOfEntries; j++)
-                        {
-                            for (int k=0;k<2;k++)
-                            {
-                                for (int c=0;c<dimensions;c++)
-                                {
-                                    System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
-                                    bytecounter+=Double.BYTES;
-                                    if (k == 0 && c == 0) {
-                                        rectMinLat = ByteBuffer.wrap(pointsArray[k][c]).getDouble();
-                                    } else if (k == 0 && c == 1) {
-                                        rectMinLon = ByteBuffer.wrap(pointsArray[k][c]).getDouble();
-                                    } else if (k == 1 && c == 0) {
-                                        rectMaxLat = ByteBuffer.wrap(pointsArray[k][c]).getDouble();
-                                    } else {
-                                        rectMaxLon = ByteBuffer.wrap(pointsArray[k][c]).getDouble();
-                                    }
-                                }
+                        for (Record record: records) {
+                            if (record.getLAT() >= minLat &&
+                                    record.getLAT() <= maxLat &&
+                                    record.getLON() >= minLon &&
+                                    record.getLON() <= maxLon) {
+                                result.add(record);
                             }
-                            pointsArray= new byte[2][dimensions][Double.BYTES];
-                            System.arraycopy(block, bytecounter, childPointer, 0, Integer.BYTES);
-
-                            if (rectMinLat <= maxLat && rectMaxLat >= minLat && rectMinLon <= maxLon && rectMaxLon >= minLon) {
-                                pointers.add(ByteBuffer.wrap(childPointer).getInt());
-                            }
-
-                            bytecounter+=Integer.BYTES;
                         }
                     }
                     pointers.remove();
                 }
-                print(result);
+                print();
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private static void print(ArrayList<Record> result) {
+    private void print() {
         System.out.println("\nThere are " + result.size() + " entries found in the given range:\n");
         for (Record record: result) {
-            System.out.println("LAT: " + record.getLAT() + ", LON: " + record.getLON() + ", ID:" + record.getId() +
+            System.out.println("LAT: " + record.getLAT() +
+                    ", LON: " + record.getLON() +
+                    ", ID:" + record.getId() +
                     ", Datafile block: " + FileHandler.getRecord(record.getId() ).getRecordLocation().getBlock() +
                     ", Block slot: " + FileHandler.getRecord(record.getId()).getRecordLocation().getSlot());
         }
     }
 
-    private static void getUserInput() {
+    private void getUserInput() {
         System.out.println("Insert the rectangle coordinates (they should be only positive and not overlap in the same " +
                 "axis): ");
         Scanner scanner = new Scanner(System.in);
         int counter = 0;
 
-        while (true) {
+        do {
             try {
                 if (counter == 0) {
                     System.out.print("Minimum LAT: ");
                     minLat = scanner.nextDouble();
-                } else if ( counter == 1) {
+                } else if (counter == 1) {
                     System.out.print("Minimum LON: ");
                     minLon = scanner.nextDouble();
                 } else if (counter == 2) {
@@ -158,9 +107,15 @@ public class RangeQuery extends Query {
                 scanner.nextLine();
             }
 
-            if (++counter == 4) {
-                break;
-            }
+        } while (++counter != 4);
+    }
+
+    private void invalidArgs(String desc) {
+        switch (desc) {
+            case "negative" -> System.out.println("Invalid arguments. Coordinates should only be positive.");
+            case "overlap" ->
+                    System.out.println("Invalid arguments. Coordinates between the same axis shouldn't overlap.");
+            case "type" -> System.out.println("Invalid arguments. Coordinates should be Double/Float or Integers");
         }
     }
 }

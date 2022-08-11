@@ -184,12 +184,11 @@ public class ReAdjustRectangleBounds {
                                     System.arraycopy(new byte[Integer.BYTES], 0, dataBlock, bytecounter + offset + 4 * Double.BYTES, Integer.BYTES);
 
                                     // decrease the number of rectangles in the block by one
-                                    System.arraycopy(FileHandler.intToBytes(tempNoOfEntries - 1), 0, dataBlock, Integer.BYTES, Integer.BYTES);
+                                    System.arraycopy(ConversionToBytes.intToBytes(tempNoOfEntries - 1), 0, dataBlock, Integer.BYTES, Integer.BYTES);
 
                                     // decrease the number of total rectangles in the tree
                                     FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() - 1);
 
-                                    tempNoOfEntries--;
                                     indexfileEdit = true;
                                 } else {
                                     System.arraycopy(dataBlock, bytecounter, minLatArray, 0, Double.BYTES);
@@ -199,10 +198,10 @@ public class ReAdjustRectangleBounds {
 
                                     if (!(ByteBuffer.wrap(minLatArray).getDouble() == minLat && ByteBuffer.wrap(maxLatArray).getDouble() == maxLat
                                             && ByteBuffer.wrap(minLonArray).getDouble() == minLon && ByteBuffer.wrap(maxLonArray).getDouble() == maxLon)) {
-                                        System.arraycopy(FileHandler.doubleToBytes(minLat), 0, dataBlock, bytecounter, Double.BYTES);
-                                        System.arraycopy(FileHandler.doubleToBytes(minLon), 0, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
-                                        System.arraycopy(FileHandler.doubleToBytes(maxLat), 0, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
-                                        System.arraycopy(FileHandler.doubleToBytes(maxLon), 0, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
+                                        System.arraycopy(ConversionToBytes.doubleToBytes(minLat), 0, dataBlock, bytecounter, Double.BYTES);
+                                        System.arraycopy(ConversionToBytes.doubleToBytes(minLon), 0, dataBlock, bytecounter + Double.BYTES, Double.BYTES);
+                                        System.arraycopy(ConversionToBytes.doubleToBytes(maxLat), 0, dataBlock, bytecounter + 2 * Double.BYTES, Double.BYTES);
+                                        System.arraycopy(ConversionToBytes.doubleToBytes(maxLon), 0, dataBlock, bytecounter + 3 * Double.BYTES, Double.BYTES);
 
                                         indexfileEdit = true;
                                     }

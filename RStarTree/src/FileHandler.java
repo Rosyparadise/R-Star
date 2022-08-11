@@ -30,30 +30,6 @@ public class FileHandler {
     private static final ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
 
-    public static byte[] longToBytes(long x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-        buffer.putLong(x);
-        return buffer.array();
-    }
-
-    public static byte[] doubleToBytes(double x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Double.BYTES);
-        buffer.putDouble(x);
-        return buffer.array();
-    }
-
-    public static byte[] charToBytes(Character x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Character.BYTES);
-        buffer.putChar(x);
-        return buffer.array();
-    }
-
-    public static byte[] intToBytes(Integer x) {
-        ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
-        buffer.putInt(x);
-        return buffer.array();
-    }
-
     static void createDataFile(int dimensions){
         if (dimensions >= 2){
             FileHandler.dimensions = dimensions;
@@ -69,9 +45,9 @@ public class FileHandler {
         try {
             FileHandler.noOfDatafileBlocks++;
             //+noOfnodesInDatafile?
-            byte[] dimensionArray = intToBytes(dimensions);
-            byte[] blocksizeArray = intToBytes(blockSize);
-            byte[] noOfBlocksArray = intToBytes(noOfDatafileBlocks);
+            byte[] dimensionArray = ConversionToBytes.intToBytes(dimensions);
+            byte[] blocksizeArray = ConversionToBytes.intToBytes(blockSize);
+            byte[] noOfBlocksArray = ConversionToBytes.intToBytes(noOfDatafileBlocks);
             byte[] blockData = new byte[blockSize];
             //bytecounter for blockData
             int bytecounter = 0;
@@ -132,8 +108,8 @@ public class FileHandler {
 
             //where the data will be saved after being converted into byte arrays
             byte[] b_id, b_lat, b_lon, b_name=null;
-            byte[] delimiterArray = charToBytes(FileHandler.delimiter);
-            byte[] blockSeparatorArray = charToBytes(FileHandler.blockSeperator);
+            byte[] delimiterArray = ConversionToBytes.charToBytes(FileHandler.delimiter);
+            byte[] blockSeparatorArray = ConversionToBytes.charToBytes(FileHandler.blockSeperator);
             byte[] blockData = new byte[blockSize];
 
             for (int i = 0; i < noOfNodes; i++)
@@ -144,9 +120,9 @@ public class FileHandler {
                 NamedNodeMap attrList = block.getAttributes();
 
                 //and into byte[] form
-                b_id = longToBytes(Long.parseLong(attrList.getNamedItem("id").getNodeValue()));
-                b_lat = doubleToBytes(Double.parseDouble(attrList.getNamedItem("lat").getNodeValue()));
-                b_lon = doubleToBytes(Double.parseDouble(attrList.getNamedItem("lon").getNodeValue()));
+                b_id = ConversionToBytes.longToBytes(Long.parseLong(attrList.getNamedItem("id").getNodeValue()));
+                b_lat = ConversionToBytes.doubleToBytes(Double.parseDouble(attrList.getNamedItem("lat").getNodeValue()));
+                b_lon = ConversionToBytes.doubleToBytes(Double.parseDouble(attrList.getNamedItem("lon").getNodeValue()));
 
                 //if <node> has children>
                 if (block.getChildNodes().getLength() > 0)
@@ -186,7 +162,7 @@ public class FileHandler {
                     bytecounter = 0;
                     blockData = new byte[blockSize];
                     file.seek(8);
-                    file.write(intToBytes(noOfDatafileBlocks));
+                    file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
                     file.close();
                 }
 
@@ -215,7 +191,7 @@ public class FileHandler {
 
             noOfDatafileBlocks++;
             file.seek(8);
-            file.write(intToBytes(noOfDatafileBlocks));
+            file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
             file.close();
 
         } catch (Exception e){
@@ -309,9 +285,9 @@ public class FileHandler {
 
     private static void createFirstIndexfileBlock(){
         try {
-            byte[] blocksizeArray = intToBytes(blockSize);
-            byte[] noOfBlocksArray = intToBytes(noOfIndexfileBlocks);
-            byte[] leafLevelArray = intToBytes(leafLevel);
+            byte[] blocksizeArray = ConversionToBytes.intToBytes(blockSize);
+            byte[] noOfBlocksArray = ConversionToBytes.intToBytes(noOfIndexfileBlocks);
+            byte[] leafLevelArray = ConversionToBytes.intToBytes(leafLevel);
             byte[] blockData = new byte[blockSize];
             //bytecounter for blockData
             int bytecounter = 0;
@@ -437,90 +413,58 @@ public class FileHandler {
     
     public static void readIndexFile() {
         try {
-            File file = new File(IndexfilePath);
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            if (noOfIndexfileBlocks > 1) {
-                Queue<Integer> pointers = new LinkedList<>();
+            Queue<Integer> pointers = new LinkedList<>();
+
+            if (FileHandler.getNoOfIndexfileBlocks() > 1) {
                 pointers.add(1);
+                int blockId, level;
 
                 while (!pointers.isEmpty()) {
-                    int i = pointers.peek();
+                    blockId = pointers.peek();
+                    level = getMetaDataOfRectangle(blockId).get(0);
 
-                    byte[] block = new byte[blockSize];
-                    System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
+                    if (level != leafLevel){
+                        ArrayList<Rectangle> rectangles = getRectangleEntries(blockId);
 
-                    // read the metadata
-                    byte[] level = new byte[Integer.BYTES];
-                    byte[] currentNoOfEntries = new byte[Integer.BYTES];
-                    byte[] parentPointer = new byte[Integer.BYTES];
+                        System.out.println("Block No: " + blockId +
+                                ", Level: " + level +
+                                ", No of rectangles: " + rectangles.size() +
+                                ", Leaf level: " + leafLevel +
+                                ", Parent block id: " + getMetaDataOfRectangle(blockId).get(2) +
+                                "\nRecords: ");
 
-                    System.arraycopy(block, 0, level, 0, Integer.BYTES);
-                    System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
-                    System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
 
-                    int tempLevel = ByteBuffer.wrap(level).getInt();
-                    int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
-                    int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
-
-                    if (tempLevel == leafLevel){
-                        System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of entries: " + tempCurrentNoOfEntries +
-                                ", Parent block id: " + tempParentPointer + "\nRecords: ");
-
-                        byte[] LATarray = new byte[Double.BYTES];
-                        byte[] LONarray = new byte[Double.BYTES];
-                        byte[] RecordIdArray = new byte[Integer.BYTES];
-                        int bytecounter = 3 * Integer.BYTES;
-
-                        for (int j = 0; j < tempCurrentNoOfEntries; j++){
-                            System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
-                            System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
-                            System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
-                            bytecounter += 2 * Double.BYTES + Integer.BYTES;
-
-                            double LAT = ByteBuffer.wrap(LATarray).getDouble();
-                            double LON = ByteBuffer.wrap(LONarray).getDouble();
-                            int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
-
-                            System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId+ ", Datafile block: " +
-                                    records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
-                                    records.get(recordId).getRecordLocation().getSlot());
+                        for (Rectangle rectangle: rectangles) {
+                            System.out.println(
+                                    "LAT: " + rectangle.getMinLAT() +
+                                            ", " + rectangle.getMaxLAT() +
+                                            ", LON: " + rectangle.getMinLON() +
+                                            ", " + rectangle.getMaxLON()
+                            );
+                            pointers.add(rectangle.getChildPointer());
                         }
-                        System.out.println();
-                    }
-                    else
-                    {
-                        System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of rectangles: " +
-                                tempCurrentNoOfEntries + ", Leaf level: " + leafLevel +
-                                ", Parent block id: " + tempParentPointer + "\nRecords: ");
+                    } else {
+                        ArrayList<Record> records = getRecords(blockId);
 
-                        int bytecounter = 3 * Integer.BYTES;
-                        byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
-                        byte[] childPointer = new byte[Integer.BYTES];
+                        System.out.println("Block No: " + blockId +
+                                ", Level: " + level +
+                                ", No of entries: " + records.size() +
+                                ", Parent block id: " + getMetaDataOfRectangle(blockId).get(2) +
+                                "\nRecords: ");
 
-                        for (int j=0;j < tempCurrentNoOfEntries; j++)
-                        {
-                            for (int k=0;k<2;k++)
-                            {
-                                for (int c=0;c<dimensions;c++)
-                                {
-                                    System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
-                                    bytecounter+=Double.BYTES;
-                                    System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
-                                }
-                            }
-                            System.out.println();
-                            pointsArray= new byte[2][dimensions][Double.BYTES];
-                            System.arraycopy(block, bytecounter, childPointer, 0, Integer.BYTES);
-                            pointers.add(ByteBuffer.wrap(childPointer).getInt());
-                            bytecounter+=Integer.BYTES;
+                        for (Record record: records) {
+                            System.out.println("LAT: " + record.getLAT() +
+                                    ", LON: " + record.getLON() +
+                                    ", ID:" + record.getId() +
+                                    ", Datafile block: " + record.getRecordLocation().getBlock() +
+                                    ", Block slot: " + record.getRecordLocation().getSlot());
                         }
-                        System.out.println();
                     }
+                    System.out.println();
                     pointers.remove();
                 }
-
             }
-        } catch (Exception e){
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
@@ -537,7 +481,6 @@ public class FileHandler {
         // Return the number of rectangles that a block can have, which is total block size minus the size of metadata
         // minus the left childpointer of the first rectangle (the first rectangle is the only one with two childpointers)
         // and all mod with rectangleInfoSize
-//        System.out.println(blockSize + " " + metadataSize + " " + Integer.BYTES + " " + rectangleInfoSize);
         return (blockSize - metadataSize) / rectangleInfoSize;
     }
 
@@ -556,17 +499,107 @@ public class FileHandler {
         return (blockSize - metadataSize) / nodeInfoSize;
     }
 
-    public static void delete(double LAT, double LON)
-    {
-        boolean result = Delete.delete(LAT, LON, 1);
-        if (result)
-        {
-            System.out.println("The node with LAT: " + LAT + ", and LON: " + LON + ", was successfully deleted.");
+    public static ArrayList<Integer> getMetaDataOfRectangle(int id) {
+        ArrayList<Integer> metadata = new ArrayList<>();
+        byte[] levelArray = new byte[Integer.BYTES];
+        byte[] noOfEntries = new byte[Integer.BYTES];
+        byte[] parentPointer = new byte[Integer.BYTES];
+
+        try {
+            File file = new File(FileHandler.getIndexfilePath());
+            byte[] bytes = Files.readAllBytes(file.toPath());
+
+            System.arraycopy(bytes, id * blockSize, levelArray, 0, Integer.BYTES);
+            System.arraycopy(bytes, id * blockSize + Integer.BYTES, noOfEntries, 0, Integer.BYTES);
+            System.arraycopy(bytes, id * blockSize + 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
+
+            metadata.add(ByteBuffer.wrap(levelArray).getInt());
+            metadata.add(ByteBuffer.wrap(noOfEntries).getInt());
+            metadata.add(ByteBuffer.wrap(parentPointer).getInt());
+        } catch (Exception e) {
+            e.printStackTrace();
         }
-        else
-        {
-            System.out.println("The node with the given coordinates didn't get found.");
+
+        return metadata;
+    }
+
+    public static ArrayList<Rectangle> getRectangleEntries(int id) {
+        ArrayList<Rectangle> rectangles = new ArrayList<>();
+
+        try {
+            File file = new File(FileHandler.getIndexfilePath());
+            byte[] bytes = Files.readAllBytes(file.toPath());
+
+            byte[] block = new byte[blockSize];
+            System.arraycopy(bytes, id * blockSize, block, 0, blockSize);
+
+            byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+
+            byte[] minLAT = new byte[Double.BYTES];
+            byte[] minLON = new byte[Double.BYTES];
+            byte[] maxLAT = new byte[Double.BYTES];
+            byte[] maxLON = new byte[Double.BYTES];
+            byte[] childPointer = new byte[Integer.BYTES];
+
+            int byteCounter = 3 * Integer.BYTES;
+
+            for (int i = 0; i < tempCurrentNoOfEntries; i++) {
+                System.arraycopy(block, byteCounter, minLAT, 0, Double.BYTES);
+                System.arraycopy(block, byteCounter + Double.BYTES, minLON, 0, Double.BYTES);
+                System.arraycopy(block, byteCounter + 2 * Double.BYTES, maxLAT, 0, Double.BYTES);
+                System.arraycopy(block, byteCounter + 3 * Double.BYTES, maxLON, 0, Double.BYTES);
+                System.arraycopy(block, byteCounter + 4 * Double.BYTES, childPointer, 0, Integer.BYTES);
+
+                Rectangle rectangle = new Rectangle(
+                        ByteBuffer.wrap(minLAT).getDouble(),
+                        ByteBuffer.wrap(minLON).getDouble(),
+                        ByteBuffer.wrap(maxLAT).getDouble(),
+                        ByteBuffer.wrap(maxLON).getDouble(),
+                        ByteBuffer.wrap(childPointer).getInt()
+                );
+
+                rectangles.add(rectangle);
+
+                byteCounter += 4 * Double.BYTES + Integer.BYTES;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
+
+        return rectangles;
+    }
+
+    public static ArrayList<Record> getRecords(int id) {
+        ArrayList<Record> result = new ArrayList<>();
+
+        try {
+            File file = new File(FileHandler.getIndexfilePath());
+            byte[] bytes = Files.readAllBytes(file.toPath());
+
+            byte[] block = new byte[blockSize];
+            System.arraycopy(bytes, id * blockSize, block, 0, blockSize);
+
+            byte[] currentNoOfEntries = new byte[Integer.BYTES];
+            System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+            int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+
+            byte[] recordId = new byte[Integer.BYTES];
+
+            int byteCounter = 3 * Integer.BYTES;
+
+            for (int i = 0; i < tempCurrentNoOfEntries; i++) {
+                System.arraycopy(block, byteCounter + 2 * Double.BYTES, recordId, 0, Integer.BYTES);
+
+                result.add(records.get(ByteBuffer.wrap(recordId).getInt()));
+
+                byteCounter += 2 * Double.BYTES + Integer.BYTES;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return result;
     }
 
     public static String getIndexfilePath() {

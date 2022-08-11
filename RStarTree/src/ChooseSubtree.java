@@ -26,16 +26,16 @@ public class ChooseSubtree {
                 RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
 
                 indexfile.seek(4);
-                indexfile.write(FileHandler.intToBytes(noOfIndexfileBlocks));
+                indexfile.write(ConversionToBytes.intToBytes(noOfIndexfileBlocks));
                 indexfile.seek(8);
-                indexfile.write(FileHandler.intToBytes(leafLevel));
+                indexfile.write(ConversionToBytes.intToBytes(leafLevel));
 
                 byte[] block = new byte[blockSize];
-                System.arraycopy(FileHandler.intToBytes(leafLevel), 0, block, 0, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(leafLevel), 0, block, 0, Integer.BYTES);
                 // current No of nodes/ rectangles
-                System.arraycopy(FileHandler.intToBytes(0), 0, block, Integer.BYTES, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(0), 0, block, Integer.BYTES, Integer.BYTES);
                 // parent pointer
-                System.arraycopy(FileHandler.intToBytes(-1), 0, block, 2 * Integer.BYTES, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(-1), 0, block, 2 * Integer.BYTES, Integer.BYTES);
 
                 indexfile.seek((long) blockSize * noOfIndexfileBlocks);
                 indexfile.write(block);
