@@ -13,22 +13,30 @@ public class Main {
 
         // create indexfile
         FileHandler.createIndexFile();
-        // read indexfile
-//        System.out.println();
-//        System.out.println();
-//        System.out.println("root");
-//        for (int i=0;i<4;i++)
-//        {
-//            for (int j=0;j<2;j++)
-//            {
-//                System.out.print(FileHandler.getRootMBR()[i][j]+ " ");
-//            }
-//            System.out.println();
-//        }
 
-//        FileHandler.readFirstIndexfileBlock();
+        // read indexfile
+        System.out.println();
+        System.out.println();
+        System.out.println("root");
+        for (int i=0;i<4;i++)
+        {
+            for (int j=0;j<2;j++)
+            {
+                System.out.print(FileHandler.getRootMBR()[i][j]+ " ");
+            }
+            System.out.println();
+        }
+        FileHandler.readFirstIndexfileBlock();
         FileHandler.readIndexFile();
+
         // read indexfile metadata (first block)
+
+        // delete
+        //double LAT = 41.4930671;
+        //double LON = 26.5358795;
+        //FileHandler.delete(LAT, LON);
+
+        //FileHandler.readIndexFile();
 
         // delete
 //        double LAT = 39.7160812; // 39.6877864

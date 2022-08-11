@@ -26,7 +26,7 @@ public class FileHandler {
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeperator = '#';
-    private static final int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
+    private static final int blockSize = 512; //32KB (KB=1024B) // 512 | 32768
     private static final ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
 
@@ -330,7 +330,7 @@ public class FileHandler {
             int tempnoOfBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
             int tempLeafLevel = ByteBuffer.wrap(leafLevelArray).getInt();
 
-            System.out.println("Block size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks + "\nLeaf level: " + tempLeafLevel + "\nNumber of blocks left: "+ (calculateMaxBlockRectangles()-tempnoOfBlocks) );
+            System.out.println("Block size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks + "\nLeaf level: " + tempLeafLevel);
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -402,15 +402,14 @@ public class FileHandler {
                 //2398 to cause first reinsert
                 //2899 first reinsert for map2.osm
                 //3179 first split after reinsert
-//                if (counter == 1639){ // For delete testing
-//                    break;
-//                }
+                if (counter == 246)
+                    break;
             }
         } catch (Exception e){
             e.printStackTrace();
         }
     }
-    
+
     public static void readIndexFile() {
         try {
             Queue<Integer> pointers = new LinkedList<>();

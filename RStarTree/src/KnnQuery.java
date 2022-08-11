@@ -106,7 +106,7 @@ public class KnnQuery {
             System.out.println("Invalid arguments. K should be an Integer and coordinates should be " +
                     "Double/Float or Integer.");
         } else if (desc.equals("negative")) {
-           System.out.println("Invalid arguments. Coordinates should only be positive.");
+            System.out.println("Invalid arguments. Coordinates should only be positive.");
         }
     }
 

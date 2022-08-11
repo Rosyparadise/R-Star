@@ -76,7 +76,7 @@ public class ReadjustMBR
                 {
                     double[][] mbr = (double[][]) troublemaker;
                     for (int l=0;l<mbr.length;l++)
-                       Split.calculateMBRpointbypoint(rectangle,new Record(mbr[l][0],mbr[l][1],-1),false,shrink);
+                        Split.calculateMBRpointbypoint(rectangle,new Record(mbr[l][0],mbr[l][1],-1),false,shrink);
 
                 }
 
@@ -143,10 +143,10 @@ public class ReadjustMBR
 
 
             for (int l=0;l<rectangle.length;l++)
-                    Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),new Record(rectangle[l][0],rectangle[l][1],-1),false,shrink);
+                Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),new Record(rectangle[l][0],rectangle[l][1],-1),false,shrink);
 
 
-                return;
+            return;
 
         }
     }
