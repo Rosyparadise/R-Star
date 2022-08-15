@@ -925,7 +925,7 @@ public class Split {
         return firstMBR;
     }
 
-    private static double[][] calculateMBROfRectangles(ArrayList<Double[][]> duplicate)
+    public static double[][] calculateMBROfRectangles(ArrayList<Double[][]> duplicate)
     {
         int dimensions = FileHandler.getDimensions();
 
@@ -1157,4 +1157,7 @@ public class Split {
             }
         }
     }
+
+    public static double getM(){return m;}
+
 }

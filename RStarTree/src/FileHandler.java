@@ -402,7 +402,7 @@ public class FileHandler {
                 //2398 to cause first reinsert
                 //2899 first reinsert for map2.osm
                 //3179 first split after reinsert
-                if (counter == 246)
+                if (counter == 400)
                     break;
             }
         } catch (Exception e){
@@ -646,6 +646,11 @@ public class FileHandler {
 
     public static Record getRecord(int id) {
         return records.get(id);
+    }
+
+    public static ArrayList<Record> getRecords()
+    {
+        return records;
     }
 
     public static Queue<Integer> getEmptyBlocks() {

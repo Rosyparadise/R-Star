@@ -1,8 +1,8 @@
 import java.util.ArrayList;
 
 public class Record {
-    private final double LAT;
-    private final double LON;
+    private double LAT;
+    private double LON;
     private RecordLocation recordLocation;
     private final int id;
 
@@ -19,6 +19,12 @@ public class Record {
         this.id = id;
     }
 
+    public Record copyRecord()
+    {
+        Record new_rec = new Record(this.getLAT(),this.getLON(),this.getId());
+        return new_rec;
+    }
+
     public RecordLocation getRecordLocation(){
         return recordLocation;
     }
@@ -33,6 +39,14 @@ public class Record {
 
     public int getId(){
         return id;
+    }
+
+    public void setLAT(double LAT){
+        this.LAT=LAT;
+    }
+
+    public void setLON(double LON){
+        this.LON=LON;
     }
 
 
