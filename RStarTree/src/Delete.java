@@ -3,9 +3,11 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Delete {
-    private static final int minEntries = FileHandler.calculateMaxBlockNodes() * 40 / 100; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100 | 969
+    private static final int minEntries = 670; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100 | 969
+    private static final int minRectangles = FileHandler.calculateMaxBlockRectangles() * 40 / 100;
 
     public static void delete(double LAT, double LON)
     {
@@ -82,7 +84,7 @@ public class Delete {
                         // else delete the rectangle and reinsert the nodes
                         if (blockId != 1 && tempNoOfEntries >= minEntries) {
                             ReAdjustRectangleBounds.reAdjustRectangleBounds(blockId, tempParentPointer);
-                        } else {
+                        } else if (blockId != 1) {
                             byte[] idArray = new byte[Integer.BYTES];
 
                             // Arraylist that will hold the nodes' data of the rectangle that will be deleted
@@ -116,6 +118,7 @@ public class Delete {
                                 Insert.insert(leafLevel, record);
                             }
                             // TODO metadata totnoofblocks
+//                            upwardsDeletionCheck(tempParentPointer);
                         }
 
                         return true;
@@ -147,10 +150,68 @@ public class Delete {
                     }
                 }
             }
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
     }
+
+//    private static void upwardsDeletionCheck(int blockId) {
+//        try {
+//            System.out.println(1);
+//            int blockSize = FileHandler.getBlockSize();
+//            int dimensions = FileHandler.getDimensions();
+//
+//            File file = new File(FileHandler.getIndexfilePath());
+//            byte[] bytes = Files.readAllBytes(file.toPath());
+//            byte[] dataBlock = new byte[blockSize];
+//            System.arraycopy(bytes, blockId * blockSize, dataBlock, 0, blockSize);
+//
+//            byte[] noOfEntries = new byte[Integer.BYTES];
+//            byte[] parentPointer = new byte[Integer.BYTES];
+//
+//            System.arraycopy(dataBlock, Integer.BYTES, noOfEntries, 0, Integer.BYTES);
+//            System.arraycopy(dataBlock, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
+//
+//            int tempNoOfEntries = ByteBuffer.wrap(noOfEntries).getInt();
+//            int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
+//
+//            if (blockId != 1 && tempNoOfEntries < minRectangles ){ // first block check
+//                ArrayList<Rectangle> rectangles = new ArrayList<>();
+//                byte[] minLon = new byte[Double.BYTES];
+//                byte[] minLat = new byte[Double.BYTES];
+//                byte[] maxLon = new byte[Double.BYTES];
+//                byte[] maxLat = new byte[Double.BYTES];
+//                byte[] childPointer = new byte[Integer.BYTES];
+//
+//                for (int i = 3 * Integer.BYTES;
+//                     i < tempNoOfEntries * (2 * dimensions * Double.BYTES + Integer.BYTES) + 3 * Integer.BYTES;
+//                     i += 2 * dimensions * Double.BYTES + Integer.BYTES) {
+//                    // copy the rectangles' data from the block that needs to be deleted and add them the rectangles
+//                    // arraylist
+//                    System.arraycopy(dataBlock, i, minLon, 0, Double.BYTES);
+//                    System.arraycopy(dataBlock, i + Double.BYTES, minLat, 0, Double.BYTES);
+//                    System.arraycopy(dataBlock, i + 2 * Double.BYTES, maxLon, 0, Double.BYTES);
+//                    System.arraycopy(dataBlock, i + 3 * Double.BYTES, maxLat, 0, Double.BYTES);
+//                    System.arraycopy(dataBlock, i + 4 * Double.BYTES, maxLon, 0, Integer.BYTES);
+//
+//                    List<Double> coordinates = List.of(
+//                            ByteBuffer.wrap(minLat).getDouble(),
+//                            ByteBuffer.wrap(minLon).getDouble(),
+//                            ByteBuffer.wrap(maxLat).getDouble(),
+//                            ByteBuffer.wrap(maxLon).getDouble()
+//                    );
+//
+//                    Rectangle rectangle = new Rectangle(
+//                            new ArrayList<>(coordinates),
+//                            ByteBuffer.wrap(childPointer).getInt()
+//                    );
+//
+//                    rectangles.add(rectangle);
+//                }
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 }

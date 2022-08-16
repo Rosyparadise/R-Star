@@ -4,19 +4,41 @@ public class Record {
     private double LAT;
     private double LON;
     private RecordLocation recordLocation;
-    private final int id;
+    private int id;
+    private String name;
+    private long nodeId = 0;
+    private ArrayList<Double> coords;
 
-    public Record(double LAT, double LON, int block, long slot, int id){
+    public Record(double LAT, double LON, int block, long slot, int id, long nodeId){
         this.LAT = LAT;
         this.LON = LON;
         recordLocation = new RecordLocation(block, slot);
         this.id = id;
+        this.nodeId = nodeId;
     }
     public Record(double LAT, double LON, int id)
     {
         this.LAT = LAT;
         this.LON = LON;
         this.id = id;
+    }
+
+    public Record(double LAT, double LON, int block, long slot, int id, String name, long nodeId) {
+        this.LAT = LAT;
+        this.LON = LON;
+        recordLocation = new RecordLocation(block, slot);
+        this.id = id;
+        this.name = name;
+        this.nodeId = nodeId;
+    }
+
+    // During datafile insertion
+    public Record(ArrayList<Double> coords, long nodeId, String name) {
+        this.nodeId = nodeId;
+        this.coords = new ArrayList<>(coords);
+        if (!name.equals("")) {
+            this.name = name;
+        }
     }
 
     public Record copyRecord()
@@ -40,6 +62,9 @@ public class Record {
     public int getId(){
         return id;
     }
+    public String getName() {
+        return name;
+    }
 
     public void setLAT(double LAT){
         this.LAT=LAT;
@@ -49,6 +74,13 @@ public class Record {
         this.LON=LON;
     }
 
+    public long getNodeId() {
+        return nodeId;
+    }
+
+    public ArrayList<Double> getCoords() {
+        return coords;
+    }
 
     public static void tempSort(ArrayList<Record> a, int b)
     {

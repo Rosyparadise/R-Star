@@ -15,4 +15,4 @@
        Block 3: Reinsert
        Block 3: Split
        ```
-    7) Menu in terminals for user input etc.
+    7) ~~Menu in terminals for user input etc.~~

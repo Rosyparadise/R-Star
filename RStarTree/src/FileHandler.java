@@ -8,10 +8,10 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.File;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Queue;
 
 public class FileHandler {
@@ -25,9 +25,9 @@ public class FileHandler {
     private static int dimensions; //2 for testing
     private static double[][] rootMBR;
     private static final char delimiter = '$';
-    private static final char blockSeperator = '#';
-    private static final int blockSize = 512; //32KB (KB=1024B) // 512 | 32768
-    private static final ArrayList<Record> records = new ArrayList<>();
+    private static final char blockSeparator = '#';
+    private static final int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
+    private static ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
 
     static void createDataFile(int dimensions){
@@ -91,6 +91,39 @@ public class FileHandler {
         }
     }
 
+    static void retrieveOldFileInfo(){
+        try{
+            File file = new File(DatafilePath);
+            //byte arrays to save serialized data from datafile inorder to deserialize them afterwards and print them
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            byte[] dimensionArray = new byte[4];
+            byte[] noOfBlocksArray = new byte[4];
+
+            System.arraycopy(bytes, 0, dimensionArray, 0, dimensionArray.length);
+            System.arraycopy(bytes, 8, noOfBlocksArray, 0, noOfBlocksArray.length);
+
+            dimensions = ByteBuffer.wrap(dimensionArray).getInt();
+            noOfDatafileBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
+
+            file = new File(IndexfilePath);
+            //byte arrays to save serialized data from indexfile inorder to deserialize them afterwards and print them
+            bytes = Files.readAllBytes(file.toPath());
+            noOfBlocksArray = new byte[4];
+            byte[] leafLevelArray = new byte[4];
+
+            System.arraycopy(bytes, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
+            System.arraycopy(bytes, 8, leafLevelArray, 0, leafLevelArray.length);
+
+            noOfIndexfileBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
+            leafLevel = ByteBuffer.wrap(leafLevelArray).getInt();
+
+            records = getDatafileRecords();
+            rootMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private static void insertDatafileNodes(){
         try {
             DocumentBuilder builder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
@@ -101,30 +134,20 @@ public class FileHandler {
             //node block represents the <node> we are currently processing
             Node block;
             //noOfNodes is the number of <nodes> in the .osm file
+            long nodeId;
+            String name = "";
+            ArrayList<Record> recordsToInsert = new ArrayList<>();
             long noOfNodes = doc.getElementsByTagName("node").getLength();
 
-            //data to save
-            int bytecounter=0;
-
-            //where the data will be saved after being converted into byte arrays
-            byte[] b_id, b_lat, b_lon, b_name=null;
-            byte[] delimiterArray = ConversionToBytes.charToBytes(FileHandler.delimiter);
-            byte[] blockSeparatorArray = ConversionToBytes.charToBytes(FileHandler.blockSeperator);
-            byte[] blockData = new byte[blockSize];
-
-            for (int i = 0; i < noOfNodes; i++)
-            {
-
+            for (int i = 0; i < noOfNodes; i++) {
+                name = "";
+                ArrayList<Double> coords = new ArrayList<>();
                 block = doc.getElementsByTagName("node").item(i);
                 //get its attributes
                 NamedNodeMap attrList = block.getAttributes();
-
-                //and into byte[] form
-                b_id = ConversionToBytes.longToBytes(Long.parseLong(attrList.getNamedItem("id").getNodeValue()));
-                b_lat = ConversionToBytes.doubleToBytes(Double.parseDouble(attrList.getNamedItem("lat").getNodeValue()));
-                b_lon = ConversionToBytes.doubleToBytes(Double.parseDouble(attrList.getNamedItem("lon").getNodeValue()));
-
-                //if <node> has children>
+                nodeId = Long.parseLong(attrList.getNamedItem("id").getNodeValue());
+                coords.add(Double.parseDouble(attrList.getNamedItem("lat").getNodeValue()));
+                coords.add(Double.parseDouble(attrList.getNamedItem("lon").getNodeValue()));
                 if (block.getChildNodes().getLength() > 0)
                 {
                     NodeList children = block.getChildNodes();
@@ -133,79 +156,31 @@ public class FileHandler {
                     for (int j=1; j < children.getLength(); j+=2)
                     {
                         //get its attributes and check if there is one called k with the value name
-                        if (children.item(j).getAttributes().getNamedItem("k").getNodeValue().equals("name"))
+                        if (children.item(j).getAttributes().getNamedItem("k").getNodeValue().equals("name:en"))
                         {
                             //if there is, save the value of attribute v as the name
-                            b_name = children.item(j).getAttributes().getNamedItem("v").getNodeValue().getBytes(StandardCharsets.UTF_8);
+                            name = children.item(j).getAttributes().getNamedItem("v").getNodeValue();
+                            //.getBytes(StandardCharsets.UTF_8)
                             break;
                         }
                     }
                 }
-                // Adding the current bytecounter with the bytes of the incoming node in the var tempbytecounter
-                int tempbytecounter = bytecounter + b_id.length + b_lat.length + b_lon.length + delimiterArray.length + blockSeparatorArray.length;
-                if (b_name != null){
-                    tempbytecounter += b_name.length;
-                }
-
-                // If tempbytecounter is greater than blockSize then the block (blockData) gets written in the file
-                // blockData is instantiated again to get empty, the bytecounter resets
-                // the metadata in first block get updated
-                if (tempbytecounter >= blockSize){
-                    System.arraycopy(blockSeparatorArray, 0, blockData, bytecounter, blockSeparatorArray.length);
-//                    bytecounter += blockSeparatorArray.length;
-
-                    RandomAccessFile file = new RandomAccessFile(DatafilePath, "rw");
-                    file.seek((long) noOfDatafileBlocks * blockSize);
-                    file.write(blockData);
-
-                    noOfDatafileBlocks++;
-                    bytecounter = 0;
-                    blockData = new byte[blockSize];
-                    file.seek(8);
-                    file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
-                    file.close();
-                }
-
-                // the arrays of serialized data get copied in the block
-                System.arraycopy(b_id, 0, blockData, bytecounter, b_id.length);
-                bytecounter += b_id.length;
-                System.arraycopy(b_lat, 0, blockData, bytecounter, b_lat.length);
-                bytecounter += b_lat.length;
-                System.arraycopy(b_lon, 0, blockData, bytecounter, b_lon.length);
-                bytecounter += b_lon.length;
-                if (b_name != null){
-                    System.arraycopy(b_name, 0, blockData, bytecounter, b_name.length);
-                    bytecounter += b_name.length;
-                }
-                System.arraycopy(delimiterArray, 0, blockData, bytecounter, delimiterArray.length);
-                bytecounter += delimiterArray.length;
-
-                b_name=null;
+                recordsToInsert.add(new Record(coords, nodeId, name));
             }
-            // write the last block
-            System.arraycopy(blockSeparatorArray, 0, blockData, bytecounter, blockSeparatorArray.length);
-
-            RandomAccessFile file = new RandomAccessFile(DatafilePath, "rw");
-            file.seek((long) noOfDatafileBlocks * blockSize);
-            file.write(blockData);
-
-            noOfDatafileBlocks++;
-            file.seek(8);
-            file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
-            file.close();
-
+            Insert.datafileMassInsert(recordsToInsert);
         } catch (Exception e){
             e.printStackTrace();
         }
     }
 
-    static void readDatafile(){
+    static ArrayList<Record> getDatafileRecords() {
+        ArrayList<Record> datafileRecords = new ArrayList<>();
         try{
             File file = new File(DatafilePath);
             byte[] bytes = Files.readAllBytes(file.toPath());
             // byte arrays to store the serialized data from datafile
             byte[] delimiterArray = new byte[2];
-            byte[] blockSeperatorArray = new byte[2];
+            byte[] blockSeparatorArray = new byte[2];
             byte[] NodeIdArray = new byte[8];
             byte[] LatArray = new byte[8];
             byte[] LonArray = new byte[8];
@@ -253,28 +228,28 @@ public class FileHandler {
                         tempName = new String(nameArray);
                     }
 
-                    System.out.println("Node id: " + tempNodeId);
-                    System.out.println("LAT: " + tempLat);
-                    System.out.println("LON: " + tempLon);
-
+                    Record record;
                     if (tempcounter!=0) {
-                        System.out.println("Name: "+ tempName);
+                        record = new Record(tempLat, tempLon, i, bytecounter, datafileRecords.size(), tempName, tempNodeId);
                         bytecounter+=26+tempcounter;
                     } else {
+                        record = new Record(tempLat, tempLon, i, bytecounter, datafileRecords.size(), tempNodeId);
                         bytecounter+=26;
                     }
-                    System.out.println();
+                    datafileRecords.add(record);
 
                     // if datablock has the blockSeparator (#) at some point it means the end of the data read in the
                     // current block
-                    System.arraycopy(dataBlock, bytecounter, blockSeperatorArray, 0, 2);
-                    if (ByteBuffer.wrap(blockSeperatorArray).getChar()==blockSeperator)
+                    System.arraycopy(dataBlock, bytecounter, blockSeparatorArray, 0, 2);
+                    if (ByteBuffer.wrap(blockSeparatorArray).getChar()==blockSeparator)
                         flag = false;
                 }
+//                System.out.println(bytecounter + " --");
             }
         } catch (Exception e){
             e.printStackTrace();
         }
+        return datafileRecords;
     }
 
     static void createIndexFile(){
@@ -337,76 +312,18 @@ public class FileHandler {
     }
 
     private static void insertIndexfileNodes(){
-        // read datafile and add every node in the arraylist of Records. (Read is mainly copied by readDatafile()
-        // function, so it will get cleaned up at some point and its just a temp solution)
-        try {
-            File file = new File(DatafilePath);
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            // byte arrays to store the serialized data from datafile
-            byte[] delimiterArray = new byte[2];
-            byte[] blockSeperatorArray = new byte[2];
-            byte[] LatArray = new byte[8];
-            byte[] LonArray = new byte[8];
-
-            double tempLat,tempLon;
-            char newlinestr;
-
-            // save all nodes from datafile in the records arraylist
-            for (int i=1; i < noOfDatafileBlocks; i++){
-                byte[] dataBlock = new byte[blockSize];
-                System.arraycopy(bytes, i * blockSize, dataBlock, 0, blockSize);
-
-                int bytecounter = 0;
-                boolean flag = true;
-
-                while (flag){
-                    System.arraycopy(dataBlock, bytecounter+8, LatArray, 0, LatArray.length);
-                    System.arraycopy(dataBlock, bytecounter+16, LonArray, 0, LonArray.length);
-                    System.arraycopy(dataBlock, bytecounter+24, delimiterArray,0, delimiterArray.length);
-
-                    tempLat = ByteBuffer.wrap(LatArray).getDouble();
-                    tempLon = ByteBuffer.wrap(LonArray).getDouble();
-                    newlinestr = ByteBuffer.wrap(delimiterArray).getChar();
-                    int tempcounter=0;
-
-                    while (newlinestr!=delimiter)
-                    {
-                        tempcounter+=1;
-                        System.arraycopy(dataBlock, bytecounter+24+tempcounter, delimiterArray,0, delimiterArray.length);
-                        newlinestr = ByteBuffer.wrap(delimiterArray).getChar();
-                    }
-
-                    // new record and addition to the arraylist
-                    Record record = new Record(tempLat, tempLon, i, bytecounter, records.size()); //id?
-                    records.add(record);
-
-                    if (tempcounter!=0) {
-                        bytecounter+=26+tempcounter;
-                    } else {
-                        bytecounter+=26;
-                    }
-
-                    System.arraycopy(dataBlock, bytecounter, blockSeperatorArray, 0, 2);
-                    if (ByteBuffer.wrap(blockSeperatorArray).getChar()==blockSeperator) {
-                        flag = false;
-                    }
-                }
-            }
-
-            // iterate the arraylist of Records and insert each node to the r* tree using the Insert method
-            int counter = 0;
-            for (Record record : records) {
-                Insert.insert(leafLevel, record);
-                counter++;
-                //1639 to cause first split
-                //2398 to cause first reinsert
-                //2899 first reinsert for map2.osm
-                //3179 first split after reinsert
-                if (counter == 400)
-                    break;
-            }
-        } catch (Exception e){
-            e.printStackTrace();
+        records = new ArrayList<>(getDatafileRecords());
+        int counter = 0;
+        for (Record record : records) {
+            Insert.insert(leafLevel, record);
+            counter++;
+            //1639 to cause first split
+            //2398 to cause first reinsert
+            //2899 first reinsert for map2.osm
+            //3179 first split after reinsert
+            //246 for 512 byte blocksize
+            if (counter == 1639)
+                break;
         }
     }
 
@@ -414,14 +331,13 @@ public class FileHandler {
         try {
             Queue<Integer> pointers = new LinkedList<>();
 
-            if (FileHandler.getNoOfIndexfileBlocks() > 1) {
+            if (FileHandler.getNoOfIndexfileBlocks() >= 1) {
                 pointers.add(1);
                 int blockId, level;
 
                 while (!pointers.isEmpty()) {
                     blockId = pointers.peek();
                     level = getMetaDataOfRectangle(blockId).get(0);
-
                     if (level != leafLevel){
                         ArrayList<Rectangle> rectangles = getRectangleEntries(blockId);
 
@@ -435,10 +351,10 @@ public class FileHandler {
 
                         for (Rectangle rectangle: rectangles) {
                             System.out.println(
-                                    "LAT: " + rectangle.getMinLAT() +
-                                            ", " + rectangle.getMaxLAT() +
-                                            ", LON: " + rectangle.getMinLON() +
-                                            ", " + rectangle.getMaxLON()
+                                    "LAT: " + rectangle.getCoordinates().get(0) +
+                                            ", " + rectangle.getCoordinates().get(dimensions) +
+                                            ", LON: " + rectangle.getCoordinates().get(1) +
+                                            ", " + rectangle.getCoordinates().get(1 + dimensions)
                             );
                             pointers.add(rectangle.getChildPointer());
                         }
@@ -452,11 +368,20 @@ public class FileHandler {
                                 "\nRecords: ");
 
                         for (Record record: records) {
-                            System.out.println("LAT: " + record.getLAT() +
+                            System.out.print("LAT: " + record.getLAT() +
                                     ", LON: " + record.getLON() +
-                                    ", ID:" + record.getId() +
                                     ", Datafile block: " + record.getRecordLocation().getBlock() +
                                     ", Block slot: " + record.getRecordLocation().getSlot());
+
+                            if (record.getName() != null && !record.getName().equals("")) {
+                                System.out.print(", Name: " + record.getName());
+                            }
+
+                            if (record.getNodeId() != 0) {
+                                System.out.print(", Node ID: " + record.getNodeId());
+                            }
+
+                            System.out.println();
                         }
                     }
                     System.out.println();
@@ -551,11 +476,15 @@ public class FileHandler {
                 System.arraycopy(block, byteCounter + 3 * Double.BYTES, maxLON, 0, Double.BYTES);
                 System.arraycopy(block, byteCounter + 4 * Double.BYTES, childPointer, 0, Integer.BYTES);
 
+                List<Double> coordinates = List.of(
+                    ByteBuffer.wrap(minLAT).getDouble(),
+                    ByteBuffer.wrap(minLON).getDouble(),
+                    ByteBuffer.wrap(maxLAT).getDouble(),
+                    ByteBuffer.wrap(maxLON).getDouble()
+                );
+
                 Rectangle rectangle = new Rectangle(
-                        ByteBuffer.wrap(minLAT).getDouble(),
-                        ByteBuffer.wrap(minLON).getDouble(),
-                        ByteBuffer.wrap(maxLAT).getDouble(),
-                        ByteBuffer.wrap(maxLON).getDouble(),
+                        new ArrayList<>(coordinates),
                         ByteBuffer.wrap(childPointer).getInt()
                 );
 
@@ -659,5 +588,29 @@ public class FileHandler {
 
     public static void setEmptyBlocks(Queue<Integer> emptyBlocks) {
         FileHandler.emptyBlocks = emptyBlocks;
+    }
+
+    public static void setDimensions(int dimensions) {
+        FileHandler.dimensions = dimensions;
+    }
+
+    public static char getDelimiter() {
+        return delimiter;
+    }
+
+    public static char getBlockSeparator() {
+        return blockSeparator;
+    }
+
+    public static int getNoOfDatafileBlocks() {
+        return noOfDatafileBlocks;
+    }
+
+    public static void setNoOfDatafileBlocks(int noOfDatafileBlocks) {
+        FileHandler.noOfDatafileBlocks = noOfDatafileBlocks;
+    }
+
+    public static void setRecords(ArrayList<Record> records) {
+        FileHandler.records = records;
     }
 }

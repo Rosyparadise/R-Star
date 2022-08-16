@@ -324,7 +324,8 @@ public class Split {
                 System.arraycopy(dataBlock,Integer.BYTES,noOfEntries,0,Integer.BYTES);
                 int bytecounter = 3 * Integer.BYTES;
 
-                    outer: for (int i = 0; i < ByteBuffer.wrap(noOfEntries).getInt(); i++)
+                    outer:
+                    for (int i = 0; i < ByteBuffer.wrap(noOfEntries).getInt(); i++)
                     {
                         byte[] childBlockIdArray = new byte[Double.BYTES];
                         System.arraycopy(dataBlock, bytecounter + 4 * Double.BYTES, childBlockIdArray, 0, Integer.BYTES);
@@ -376,7 +377,6 @@ public class Split {
 
                         counter2 += Integer.BYTES;
                     }
-
                     RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
 
                     if (FileHandler.calculateMaxBlockRectangles()-ByteBuffer.wrap(noOfEntries).getInt()>0)

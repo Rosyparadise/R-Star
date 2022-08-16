@@ -1,10 +1,12 @@
 import java.util.*;
 
 public class SkylineQuery {
-    Stack<Integer> pointers;
-    ArrayList<Record> result;
+    private final Stack<Integer> pointers;
+    private final ArrayList<Record> result;
+    private final int dimensions;
 
     SkylineQuery() {
+        this.dimensions = FileHandler.getDimensions();
         pointers = new Stack<>();
         result = new ArrayList<>();
         this.skylineQuery();
@@ -27,14 +29,13 @@ public class SkylineQuery {
 
                         outerLoop:
                         for (Rectangle rectangle: rectangles) {
-                            // TODO check functionality for discard of dominated rectangles in tree with >=3 levels
 //                            System.out.println(rectangle.getChildPointer());
                             if (!result.isEmpty()) {
                                 for (Record record: result) {
-                                    if (record.getLON() <= rectangle.getMinLON() &&
-                                            record.getLON() <= rectangle.getMaxLON() &&
-                                            record.getLON() <= rectangle.getMinLAT() &&
-                                            record.getLON() <= rectangle.getMaxLAT()
+                                    if (record.getLON() <= rectangle.getCoordinates().get(0) &&
+                                            record.getLON() <= rectangle.getCoordinates().get(dimensions) &&
+                                            record.getLON() <= rectangle.getCoordinates().get(1) &&
+                                            record.getLON() <= rectangle.getCoordinates().get(1 + dimensions)
                                     ) {
                                         continue outerLoop;
                                     }
@@ -74,21 +75,29 @@ public class SkylineQuery {
                         }
                     }
                 }
-                print();
             }
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    private void print() {
+    void print() {
         System.out.println("There are " + result.size() + " entries in the skyline: ");
         for (Record record: result) {
-            System.out.println("LAT: " + record.getLAT() +
+            System.out.print("LAT: " + record.getLAT() +
                     ", LON: " + record.getLON() +
-                    ", ID:" + record.getId() +
                     ", Datafile block: " + FileHandler.getRecord(record.getId() ).getRecordLocation().getBlock() +
                     ", Block slot: " + FileHandler.getRecord(record.getId()).getRecordLocation().getSlot());
+
+            if (record.getName() != null && !record.getName().equals("")) {
+                System.out.print(", Name: " + record.getName());
+            }
+
+            if (record.getNodeId() != 0) {
+                System.out.print(", Node ID: " + record.getNodeId());
+            }
+
+            System.out.println();
         }
     }
 }

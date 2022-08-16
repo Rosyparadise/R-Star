@@ -1,15 +1,17 @@
 import java.util.ArrayList;
 
 public class Rectangle {
-    private final double minLAT, minLON, maxLAT, maxLON;
-    private final int childPointer;
+//    private final double minLAT, minLON, maxLAT, maxLON;
+    private final ArrayList<Double> coordinates;
+    private int childPointer;
 
-    Rectangle(double minLAT, double minLON, double maxLAT, double maxLON, int childPointer) {
-        this.minLAT = minLAT;
-        this.minLON = minLON;
-        this.maxLAT = maxLAT;
-        this.maxLON = maxLON;
+    Rectangle(ArrayList<Double> coordinates, int childPointer) {
+        this.coordinates = new ArrayList<>(coordinates);
         this.childPointer = childPointer;
+    }
+
+    Rectangle(ArrayList<Double> coordinates) {
+        this.coordinates = new ArrayList<>(coordinates);
     }
 
     public static void tempSort(ArrayList<Double[][]> a, int b, int c, ArrayList<Integer> d) //one more variable to alternate between lower and higher
@@ -80,20 +82,8 @@ public class Rectangle {
         }
     }
 
-    public double getMaxLAT() {
-        return maxLAT;
-    }
-
-    public double getMaxLON() {
-        return maxLON;
-    }
-
-    public double getMinLAT() {
-        return minLAT;
-    }
-
-    public double getMinLON() {
-        return minLON;
+    public ArrayList<Double> getCoordinates() {
+        return this.coordinates;
     }
 
     public int getChildPointer() {
