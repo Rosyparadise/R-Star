@@ -195,6 +195,7 @@ public class Split {
                 first.add(axisLeastMargin.get(l));
 
 
+
             double[][] firstMBR;
             firstMBR=calculateMBR(first);
 
@@ -245,6 +246,9 @@ public class Split {
 
                 leafLevel++;
                 FileHandler.setLeafLevel(leafLevel);
+                if (FileHandler.isBottomUp()) {
+                    FileHandler.getBtm().setleaflevelFINAL(leafLevel);
+                }
 
                 byte[] dataBlock1 = new byte[blockSize];
 
@@ -300,12 +304,14 @@ public class Split {
                 indexfile.write(dataBlock2);
                 //System.out.println("health x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
 
-                byte[] tempMetaData = ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks());
-                indexfile.seek(Integer.BYTES);
-                indexfile.write(tempMetaData);
-                tempMetaData = ConversionToBytes.intToBytes(leafLevel);
-                indexfile.seek(Integer.BYTES*2);
-                indexfile.write(tempMetaData);
+                if (!FileHandler.isBottomUp()) {
+                    byte[] tempMetaData = ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks());
+                    indexfile.seek(Integer.BYTES);
+                    indexfile.write(tempMetaData);
+                    tempMetaData = ConversionToBytes.intToBytes(leafLevel);
+                    indexfile.seek(Integer.BYTES * 2);
+                    indexfile.write(tempMetaData);
+                }
 
 
                 indexfile.close();
@@ -668,6 +674,9 @@ public class Split {
             indexfile.write(replaceOldRectangle);
 
             FileHandler.setLeafLevel(FileHandler.getLeafLevel()+1);
+
+            if (FileHandler.isBottomUp())
+                FileHandler.getBtm().setleaflevelFINAL(FileHandler.getLeafLevel());
 
             for (int i=0;i<first.size();i++)
             {

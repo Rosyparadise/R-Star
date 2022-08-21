@@ -6,7 +6,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Delete {
-    private static final int minEntries = 670; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100 | 969
+    private static final int minEntries = FileHandler.calculateMaxBlockNodes() * 40 / 100; // 670 | FileHandler.calculateMaxBlockNodes() * 40 / 100 | 969
     private static final int minRectangles = FileHandler.calculateMaxBlockRectangles() * 40 / 100;
 
     public static void delete(double LAT, double LON)

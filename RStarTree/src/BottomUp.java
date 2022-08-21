@@ -1,41 +1,35 @@
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.nio.ByteBuffer;
-import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Queue;
-
 public class BottomUp {
 
     Queue<Record> subset_recs;
     ArrayList<Record> records;
-    int leaflevel;
+    int leaflevelFINAL;
     int blockID;
 
-
-    public BottomUp()
-    {
-        records=FileHandler.getRecords();
+    public BottomUp() {
+        records = FileHandler.getRecords();
         subset_recs = new LinkedList<>();
-        leaflevel=0;
-        blockID = 1;
+        leaflevelFINAL = getLevelsofTree(400);
+        blockID = 2;
 
     }
 
-    public void construct()
-    {
-        double S=0;
-        for (Record record : records) {
-            subset_recs.add(record.copyRecord());
-            if (record.getLAT() > S)
-                S = record.getLAT();
-            if (record.getLON() > S)
-                S = record.getLON();
+    public void construct() {
+        FileHandler.setBottomUp(true);
+        FileHandler.setBtm(this);
+        double S = 0;
+        for (int i = 0; i < 400; i++) {
+            subset_recs.add(records.get(i).copyRecord());
+            if (records.get(i).getLAT() > S)
+                S = records.get(i).getLAT();
+            if (records.get(i).getLON() > S)
+                S = records.get(i).getLON();
         }
-
 
         HilbertSort sort = new HilbertSort(subset_recs, S);
         Queue<Record> sortedList = sort.hilbertHelper();
@@ -46,40 +40,32 @@ public class BottomUp {
             IDs.add(sortedList.remove().getId());
 
 
-        try
-        {
-            RandomAccessFile indexfile = new RandomAccessFile("indexfileBU.dat", "rw");
-            int max_records=FileHandler.calculateMaxBlockNodes();
+        try {
+            RandomAccessFile indexfile = new RandomAccessFile("indexfile.dat", "rw");
+            int max_records = FileHandler.calculateMaxBlockNodes();
             int blockSize = FileHandler.getBlockSize();
-            leaflevel = getLevelsofTree(IDs.size());
+            int leaflevel = getLevelsofTree(IDs.size());
 
-
-            int iterations =(int) Math.ceil((double) IDs.size()/max_records);
+            int iterations = (int) Math.ceil((double) IDs.size() / max_records);
             double[][][] MBRs = new double[iterations][4][2];
             int[] MBRs_ID = new int[iterations];
 
 
             ArrayList<Integer> leaf_sizes = new ArrayList<>();
-            for (int i=0;i<iterations;i++)
-            {
-                if (i==iterations-1)
-                {
-                    if(IDs.size()-(i*max_records)<Math.floor(max_records*Split.getM()))
-                    {
-                        int need = (int) (Math.floor(max_records*Split.getM()) - (IDs.size()-(i*max_records)));
-                        leaf_sizes.add((int) Math.floor(max_records*Split.getM()));
-                        leaf_sizes.set(i-1,leaf_sizes.get(i-1)-need);
-                    }
-                    else
-                        leaf_sizes.add(IDs.size()-(i*max_records));
-                }
-                else
+            for (int i = 0; i < iterations; i++) {
+                if (i == iterations - 1) {
+                    if (IDs.size() - (i * max_records) < Math.floor(max_records * Split.getM())) {
+                        int need = (int) (Math.floor(max_records * Split.getM()) - (IDs.size() - (i * max_records)));
+                        leaf_sizes.add((int) Math.floor(max_records * Split.getM()));
+                        leaf_sizes.set(i - 1, leaf_sizes.get(i - 1) - need);
+                    } else
+                        leaf_sizes.add(IDs.size() - (i * max_records));
+                } else
                     leaf_sizes.add(max_records);
             }
 
 
-
-            for (int k=0;k<iterations;k++) {
+            for (int k = 0; k < iterations; k++) {
 
                 byte[] block = new byte[blockSize];
 
@@ -98,7 +84,7 @@ public class BottomUp {
                     counter += Integer.BYTES;
                     Split.calculateMBRpointbypoint(MBRs[k], temp, i == 0, false);
                 }
-                MBRs_ID[k]=blockID;
+                MBRs_ID[k] = blockID;
 
                 try {
                     indexfile.seek(blockID * blockSize);
@@ -108,231 +94,186 @@ public class BottomUp {
                     e.printStackTrace();
                 }
             }
+            if (leaflevelFINAL<1)
+                FileHandler.setRootMBR(MBRs[0]);
 
 
-            int max_rectangles=FileHandler.calculateMaxBlockRectangles();
-            iterations =(int) Math.ceil((double) MBRs.length/max_rectangles);
+            int max_rectangles = FileHandler.calculateMaxBlockRectangles();
+            iterations = (int) Math.ceil((double) MBRs.length / max_rectangles);
             ArrayList<Integer> nonleaf_sizes;
             double[][][] newMBR;
             int[] newMBR_ID;
+            FileHandler.setRoot(1);
 
 
-                while (iterations>1)
-                {
-                    nonleaf_sizes = new ArrayList<>();
-                    leaflevel--;
+            while (iterations > 1) {
+                nonleaf_sizes = new ArrayList<>();
+                leaflevel--;
 
-                    newMBR = new double[iterations][][];
-                    newMBR_ID = new int[iterations];
-
-
-                    for (int i=0;i<iterations;i++)
-                    {
-                        if (i==iterations-1)
-                        {
-                            if(MBRs.length-(i*max_rectangles)<Math.floor(max_rectangles*Split.getM()))
-                            {
-                                int need = (int) (Math.floor(max_rectangles*Split.getM()) - (MBRs.length-(i*max_rectangles)));
-                                nonleaf_sizes.add((int) Math.floor(max_rectangles*Split.getM()));
-                                nonleaf_sizes.set(i-1,nonleaf_sizes.get(i-1)-need);
-                            }
-                            else
-                                nonleaf_sizes.add(MBRs.length-(i*max_rectangles));
-                        }
-                        else
-                            nonleaf_sizes.add(max_rectangles);
-                    }
-
-                    int MBR_ID_counter=0;
-                    for (int z=0;z<iterations;z++) {
+                newMBR = new double[iterations][][];
+                newMBR_ID = new int[iterations];
 
 
-                        byte[] block = new byte[blockSize];
-                        System.arraycopy(ConversionToBytes.intToBytes(leaflevel), 0, block, 0, Integer.BYTES);
-                        System.arraycopy(ConversionToBytes.intToBytes(nonleaf_sizes.get(z)), 0, block, Integer.BYTES, Integer.BYTES);
+                for (int i = 0; i < iterations; i++) {
+                    if (i == iterations - 1) {
+                        if (MBRs.length - (i * max_rectangles) < Math.floor(max_rectangles * Split.getM())) {
+                            int need = (int) (Math.floor(max_rectangles * Split.getM()) - (MBRs.length - (i * max_rectangles)));
+                            nonleaf_sizes.add((int) Math.floor(max_rectangles * Split.getM()));
+                            nonleaf_sizes.set(i - 1, nonleaf_sizes.get(i - 1) - need);
+                        } else
+                            nonleaf_sizes.add(MBRs.length - (i * max_rectangles));
+                    } else
+                        nonleaf_sizes.add(max_rectangles);
+                }
 
-                        int counter = 3 * Integer.BYTES;
-                        ArrayList<Double[][]> tempmbr = new ArrayList<>();
-                        for (int i=0;i<nonleaf_sizes.get(z);i++) {
-                            Double[][] temp = Split.rectangle_to_points(MBRs[MBR_ID_counter]);
-
-                            try {
-
-                                indexfile.seek(MBRs_ID[MBR_ID_counter]*blockSize+2*Integer.BYTES);
-                                indexfile.write(ConversionToBytes.intToBytes(blockID));
-
-
-                            } catch (IOException e) {
-                                e.printStackTrace();
-                            }
-                            MBR_ID_counter++;
+                int MBR_ID_counter = 0;
+                for (int z = 0; z < iterations; z++) {
 
 
-                            for (int j=0;j<FileHandler.getDimensions();j++)
-                            {
-                                for (int k=0;k<FileHandler.getDimensions();k++)
-                                {
-                                    System.arraycopy(ConversionToBytes.doubleToBytes(temp[j][k]), 0, block, counter, Double.BYTES);
-                                    counter+= Double.BYTES;
-                                }
-                            }
-                            tempmbr.add(temp);
-                            System.arraycopy(ConversionToBytes.intToBytes(MBRs_ID[i]), 0, block, counter, Integer.BYTES);
+                    byte[] block = new byte[blockSize];
+                    System.arraycopy(ConversionToBytes.intToBytes(leaflevel), 0, block, 0, Integer.BYTES);
+                    System.arraycopy(ConversionToBytes.intToBytes(nonleaf_sizes.get(z)), 0, block, Integer.BYTES, Integer.BYTES);
 
-                            counter+=Integer.BYTES;
-                        }
-
-                        newMBR[z]=Split.calculateMBROfRectangles(tempmbr);
-                        newMBR_ID[z]=blockID;
+                    int counter = 3 * Integer.BYTES;
+                    ArrayList<Double[][]> tempmbr = new ArrayList<>();
+                    for (int i = 0; i < nonleaf_sizes.get(z); i++) {
+                        Double[][] temp = Split.rectangle_to_points(MBRs[MBR_ID_counter]);
 
                         try {
-                            indexfile.seek(blockID * blockSize);
-                            indexfile.write(block);
-                            blockID++;
+
+                            indexfile.seek(MBRs_ID[MBR_ID_counter] * blockSize + 2 * Integer.BYTES);
+                            indexfile.write(ConversionToBytes.intToBytes(blockID));
+
+
                         } catch (IOException e) {
                             e.printStackTrace();
                         }
+
+
+                        for (int j = 0; j < FileHandler.getDimensions(); j++) {
+                            for (int k = 0; k < FileHandler.getDimensions(); k++) {
+                                System.arraycopy(ConversionToBytes.doubleToBytes(temp[j][k]), 0, block, counter, Double.BYTES);
+                                counter += Double.BYTES;
+                            }
+                        }
+                        tempmbr.add(temp);
+                        System.arraycopy(ConversionToBytes.intToBytes(MBRs_ID[MBR_ID_counter]), 0, block, counter, Integer.BYTES);
+
+                        MBR_ID_counter++;
+                        counter += Integer.BYTES;
                     }
 
-                    MBRs=newMBR;
-                    MBRs_ID=newMBR_ID;
+                    newMBR[z] = Split.calculateMBROfRectangles(tempmbr);
+                    newMBR_ID[z] = blockID;
 
-                    iterations =(int) Math.ceil((double) MBRs.length/max_rectangles);
+                    try {
+                        indexfile.seek(blockID * blockSize);
+                        indexfile.write(block);
+                        blockID++;
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
 
-            leaflevel--;
-            byte[] block = new byte[blockSize];
-            System.arraycopy(ConversionToBytes.intToBytes(leaflevel), 0, block, 0, Integer.BYTES);
-            System.arraycopy(ConversionToBytes.intToBytes(MBRs.length), 0, block, Integer.BYTES, Integer.BYTES);
-            System.arraycopy(ConversionToBytes.intToBytes(-1), 0, block, Integer.BYTES*2, Integer.BYTES);
-            int counter = 3 * Integer.BYTES;
-            for (int i=0;i<MBRs.length;i++)
-            {
-                Double[][] temp = Split.rectangle_to_points(MBRs[i]);
+                MBRs = newMBR;
+                MBRs_ID = newMBR_ID;
+                iterations = (int) Math.ceil((double) MBRs.length / max_rectangles);
+            }
+            if (leaflevelFINAL >= 1) {
+                leaflevel--;
+                ArrayList<Double[][]> tempmbr = new ArrayList<>();
+                byte[] block = new byte[blockSize];
+                System.arraycopy(ConversionToBytes.intToBytes(leaflevel), 0, block, 0, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(MBRs.length), 0, block, Integer.BYTES, Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(-1), 0, block, Integer.BYTES * 2, Integer.BYTES);
+                int counter = 3 * Integer.BYTES;
+                for (int i = 0; i < MBRs.length; i++) {
+                    Double[][] temp = Split.rectangle_to_points(MBRs[i]);
+                    try {
+
+                        indexfile.seek(MBRs_ID[i] * blockSize + 2 * Integer.BYTES);
+                        indexfile.write(ConversionToBytes.intToBytes(1));
+
+
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    for (int j = 0; j < FileHandler.getDimensions(); j++) {
+                        for (int k = 0; k < FileHandler.getDimensions(); k++) {
+                            System.arraycopy(ConversionToBytes.doubleToBytes(temp[j][k]), 0, block, counter, Double.BYTES);
+                            counter += Double.BYTES;
+                        }
+                    }
+                    System.arraycopy(ConversionToBytes.intToBytes(MBRs_ID[i]), 0, block, counter, Integer.BYTES);
+                    counter += Integer.BYTES;
+                    tempmbr.add(temp);
+
+                }
+
+
                 try {
-
-                    indexfile.seek(MBRs_ID[i]*blockSize+2*Integer.BYTES);
-                    indexfile.write(ConversionToBytes.intToBytes(blockID));
-
+                    indexfile.seek(blockSize);
+                    indexfile.write(block);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                FileHandler.setRootMBR(Split.calculateMBROfRectangles(tempmbr));
+            } else {
+                try {
+                    indexfile.seek(2*blockSize + 2 * Integer.BYTES);
+                    indexfile.write(ConversionToBytes.intToBytes(-1));
+                    byte[] block = new byte[blockSize];
+                    indexfile.seek(2*blockSize);
+                    indexfile.read(block, 0, blockSize);
+                    indexfile.seek(blockSize);
+                    indexfile.write(block);
+                    blockID=2;
 
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
+            }
 
-                for (int j=0;j<FileHandler.getDimensions();j++)
-                {
-                    for (int k=0;k<FileHandler.getDimensions();k++)
-                    {
-                        System.arraycopy(ConversionToBytes.doubleToBytes(temp[j][k]), 0, block, counter, Double.BYTES);
-                        counter+= Double.BYTES;
-                    }
+            FileHandler.setNoOfIndexfileBlocks(blockID - 1);
+            FileHandler.setLeafLevel(leaflevelFINAL);
+            //TODO: Merge leaflevelFINAL and noOfIndexFileBlocks and delete ifs from Split
+
+            int[] metadata = new int[3];
+            int counter=0;
+            metadata[0]=blockSize;metadata[1]=FileHandler.getNoOfIndexfileBlocks();metadata[2]=leaflevelFINAL;
+            for (int i=0;i<3;i++)
+            {
+                try {
+                    indexfile.seek(counter);
+                    indexfile.write(ConversionToBytes.intToBytes(metadata[i]));
+                    counter+=Integer.BYTES;
+                } catch (IOException e) {
+                    e.printStackTrace();
                 }
-                System.arraycopy(ConversionToBytes.intToBytes(MBRs_ID[i]), 0, block, counter, Integer.BYTES);
-                counter+=Integer.BYTES;
             }
 
-            try {
-                indexfile.seek(blockID * blockSize);
-                indexfile.write(block);
-                blockID++;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-        catch (FileNotFoundException e) {
+        } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
+
     }
 
 
-
-    public int getLevelsofTree(int size)
-    {
-        int temp=(int) Math.ceil((double) size/FileHandler.calculateMaxBlockNodes());
-        int result=0;
-        while (temp>1)
-        {
-            temp =(int) Math.ceil((double) temp/FileHandler.calculateMaxBlockRectangles());
+    public int getLevelsofTree(int size) {
+        int temp = (int) Math.ceil((double) size / FileHandler.calculateMaxBlockNodes());
+        int result = 0;
+        while (temp > 1) {
+            temp = (int) Math.ceil((double) temp / FileHandler.calculateMaxBlockRectangles());
             result++;
 
         }
         return result;
     }
 
-    public void readIndexFile(){
-        try {
-            File file = new File("indexfileBU.dat");
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            for (int i = 1; i < blockID; i++){
-                byte[] block = new byte[FileHandler.getBlockSize()];
-                System.arraycopy(bytes, i * FileHandler.getBlockSize(), block, 0, FileHandler.getBlockSize());
 
-                byte[] level = new byte[Integer.BYTES];
-                byte[] currentNoOfEntries = new byte[Integer.BYTES];
-                byte[] parentPointer = new byte[Integer.BYTES];
-
-                System.arraycopy(block, 0, level, 0, Integer.BYTES);
-                System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
-                System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
-
-                int tempLevel = ByteBuffer.wrap(level).getInt();
-                int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
-                int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
-
-                if (tempLevel==getLevelsofTree(records.size())) {
-
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", no of entries: " + tempCurrentNoOfEntries +
-                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
-
-                    byte[] LATarray = new byte[Double.BYTES];
-                    byte[] LONarray = new byte[Double.BYTES];
-                    byte[] RecordIdArray = new byte[Integer.BYTES];
-                    int bytecounter = 3 * Integer.BYTES;
-
-                    for (int j = 0; j < tempCurrentNoOfEntries; j++) {
-                        System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
-
-                        System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
-                        System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
-                        bytecounter += 2 * Double.BYTES + Integer.BYTES;
-
-                        double LAT = ByteBuffer.wrap(LATarray).getDouble();
-                        double LON = ByteBuffer.wrap(LONarray).getDouble();
-                        int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
-
-                        System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId);
-                    }
-                }
-
-                else
-                {
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel +
-                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
-
-                    int bytecounter = 3 * Integer.BYTES;
-                    byte[][][] pointsArray= new byte[2][FileHandler.getDimensions()][Double.BYTES];
-
-                    for (int j=0;j < tempCurrentNoOfEntries; j++)
-                    {
-                        for (int k=0;k<2;k++)
-                        {
-                            for (int c=0;c<FileHandler.getDimensions();c++)
-                            {
-                                System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
-                                bytecounter+=Double.BYTES;
-                                System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
-                            }
-                        }
-                        System.out.println();
-                        pointsArray= new byte[2][FileHandler.getDimensions()][Double.BYTES];
-                        bytecounter+=Integer.BYTES;
-
-                    }
-                }
-            }
-        } catch (Exception e){
-            e.printStackTrace();
-        }
+    public void setleaflevelFINAL(int a)
+    {
+        leaflevelFINAL=a;
     }
 }
-

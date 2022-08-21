@@ -64,7 +64,8 @@ public class Insert {
                 indexfile.seek((long) blockId * blockSize + Integer.BYTES);
                 indexfile.write(ConversionToBytes.intToBytes(tempCurrentNoOfEntries));
                 if (FileHandler.getRoot() ==-1)
-                    FileHandler.setRoot(blockSize);
+                    FileHandler.setRoot(blockId);
+
 
                 indexfile.close();
             }
@@ -79,7 +80,7 @@ public class Insert {
 
     public static void overflowTreatment(int treeLevel,int blockid, Record troublemaker)
     {
-//        System.out.println("overflow"  + troublemaker.getId());
+        //System.out.println("overflow"  + troublemaker.getId());
         if (treeLevel!=overflowLevel)
         {
             overflow_first_time=true;
@@ -87,23 +88,23 @@ public class Insert {
         }
         if (treeLevel!=0 && overflow_first_time)
         {
-//            System.out.println("----------BEFORE REINSERT----------");
+            //System.out.println("----------BEFORE REINSERT----------");
             overflow_first_time=false;
-//            FileHandler.readIndexFile();
+            //FileHandler.readIndexFile();
 
             Split.reinsert(blockid,troublemaker);
-//            System.out.println("-----------AFTER REINSERT----------");
-//            FileHandler.readIndexFile();
+            //System.out.println("-----------AFTER REINSERT----------");
+            //FileHandler.readIndexFile();
         }
         else
         {
-//            System.out.println("----------BEFORE SPLIT----------");
-//            FileHandler.readIndexFile();
+            //System.out.println("----------BEFORE SPLIT----------");
+            //FileHandler.readIndexFile();
 
-//            System.out.println("split");
+            //System.out.println("split");
             Split.split(blockid, troublemaker);
-//            System.out.println("-----------AFTER SPLIT----------");
-//            FileHandler.readIndexFile();
+            //System.out.println("-----------AFTER SPLIT----------");
+            //FileHandler.readIndexFile();
 
             overflowLevel = -1;
         }
@@ -210,7 +211,6 @@ public class Insert {
         byte[] name = null;
         ArrayList<byte []> coordsByteArrays = new ArrayList<>();
         byte[] nodeId;
-
         try {
             byte[] bytes = Files.readAllBytes(datafile.toPath());
             System.arraycopy(bytes, (noOfDatafileBlocks - 1) * blockSize, dataBlock, 0, blockSize);
@@ -239,6 +239,7 @@ public class Insert {
                 System.arraycopy(dataBlock, byteCounter, blockSeparatorArray, 0, 2);
                 if (ByteBuffer.wrap(blockSeparatorArray).getChar()==FileHandler.getBlockSeparator())
                     flag = false;
+
             }
             // Adding the current byteCounter with the bytes of the incoming node in the var tempByteCounter
             int tempByteCounter = byteCounter + Long.BYTES + dimensions * Double.BYTES + delimiterArray.length + blockSeparatorArray.length;
@@ -259,6 +260,7 @@ public class Insert {
                 file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
                 file.close();
             }
+
             tempByteCounter = byteCounter;
             nodeId = ConversionToBytes.longToBytes(record.getNodeId());
 
@@ -269,6 +271,7 @@ public class Insert {
                 System.arraycopy(coordsByteArrays.get(i), 0, dataBlock, byteCounter, Double.BYTES);
                 byteCounter += Double.BYTES;
             }
+
             if (name != null){
                 System.arraycopy(name, 0, dataBlock, byteCounter, name.length);
                 byteCounter += name.length;
@@ -282,8 +285,8 @@ public class Insert {
             file1.write(dataBlock);
             file1.close();
 
+
             FileHandler.setRecords(FileHandler.getDatafileRecords());
-//            System.out.println(record.getCoords().get(0) + " " + noOfDatafileBlocks + " " + tempByteCounter + " " + FileHandler.getDatafileRecords().size());
             if (name == null) {
                 insert(FileHandler.getLeafLevel(), new Record(
                         record.getCoords().get(0),
@@ -293,7 +296,9 @@ public class Insert {
                         FileHandler.getDatafileRecords().size() - 1,
                         record.getNodeId()
                 ));
-            } else {
+
+            }
+            else {
                 insert(FileHandler.getLeafLevel(), new Record(
                         record.getCoords().get(0),
                         record.getCoords().get(1),
@@ -303,6 +308,7 @@ public class Insert {
                         record.getName(),
                         record.getNodeId()
                 ));
+
             }
         } catch (Exception e) {
             e.printStackTrace();

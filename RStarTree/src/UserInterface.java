@@ -115,7 +115,7 @@ public class UserInterface {
     }
 
     public ArrayList<Double> getPointFromUser() {
-        System.out.println("Insert the coordinates of the point (coordinates should positive Double/Float or Integers) ");
+        System.out.println("Insert the coordinates of the point (coordinates should be positive Double/Float or Integers) ");
         ArrayList<Double> coordinates = new ArrayList<>();
         do {
             try {
@@ -229,9 +229,11 @@ public class UserInterface {
 
         if (userInput.equals("1") || userInput.equals("Point by point")) {
             FileHandler.createDataFile(dimensions);
-            FileHandler.createIndexFile();
+            FileHandler.createIndexFile(true);
             treeOptionsMenu();
         } else if (userInput.equals("2") || userInput.equals("Bottom-up")) {
+            FileHandler.createDataFile(dimensions);
+            FileHandler.createIndexFile(false);
             BottomUp bottomUp = new BottomUp();
             bottomUp.construct();
             treeOptionsMenu();

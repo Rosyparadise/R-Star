@@ -26,9 +26,14 @@ public class FileHandler {
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeparator = '#';
-    private static final int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
+    private static boolean bottomUp = false;
+    private static BottomUp btm= null;
+    private static final int blockSize = 512; //32KB (KB=1024B) // 512 | 32768
     private static ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
+
+
+
 
     static void createDataFile(int dimensions){
         if (dimensions >= 2){
@@ -252,10 +257,15 @@ public class FileHandler {
         return datafileRecords;
     }
 
-    static void createIndexFile(){
-        rootMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+    static void createIndexFile(boolean pbp){
         FileHandler.createFirstIndexfileBlock();
-        FileHandler.insertIndexfileNodes();
+        records = new ArrayList<>(getDatafileRecords());
+        if (pbp)
+        {
+            rootMBR = new double[(int)Math.pow(2,dimensions)][dimensions];
+            FileHandler.insertIndexfileNodes();
+
+        }
     }
 
     private static void createFirstIndexfileBlock(){
@@ -312,7 +322,6 @@ public class FileHandler {
     }
 
     private static void insertIndexfileNodes(){
-        records = new ArrayList<>(getDatafileRecords());
         int counter = 0;
         for (Record record : records) {
             Insert.insert(leafLevel, record);
@@ -322,7 +331,8 @@ public class FileHandler {
             //2899 first reinsert for map2.osm
             //3179 first split after reinsert
             //246 for 512 byte blocksize
-            if (counter == 1639)
+            //354
+            if (counter == 200)
                 break;
         }
     }
@@ -378,7 +388,7 @@ public class FileHandler {
                             }
 
                             if (record.getNodeId() != 0) {
-                                System.out.print(", Node ID: " + record.getNodeId());
+                                System.out.print(", Node ID: " + record.getId());
                             }
 
                             System.out.println();
@@ -557,6 +567,7 @@ public class FileHandler {
     public static void setRoot(int root) {
         FileHandler.root = root;
     }
+    public static void setRootMBR(double[][] rtmbr){rootMBR=rtmbr;}
 
     public static int getDimensions() {
         return dimensions;
@@ -602,6 +613,14 @@ public class FileHandler {
         return blockSeparator;
     }
 
+    public static void setBottomUp(boolean bottomUp) {
+        FileHandler.bottomUp = bottomUp;
+    }
+
+    public static boolean isBottomUp() {
+        return bottomUp;
+    }
+
     public static int getNoOfDatafileBlocks() {
         return noOfDatafileBlocks;
     }
@@ -613,4 +632,11 @@ public class FileHandler {
     public static void setRecords(ArrayList<Record> records) {
         FileHandler.records = records;
     }
+
+    static void setBtm(BottomUp a)
+    {
+        btm=a;
+    }
+
+    static BottomUp getBtm(){return btm;}
 }
