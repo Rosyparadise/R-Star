@@ -14,7 +14,7 @@ public class BottomUp {
     public BottomUp() {
         records = FileHandler.getRecords();
         subset_recs = new LinkedList<>();
-        leaflevelFINAL = getLevelsofTree(400);
+        leaflevelFINAL = getLevelsofTree(records.size());
         blockID = 2;
 
     }
@@ -23,7 +23,7 @@ public class BottomUp {
         FileHandler.setBottomUp(true);
         FileHandler.setBtm(this);
         double S = 0;
-        for (int i = 0; i < 400; i++) {
+        for (int i = 0; i < records.size(); i++) {
             subset_recs.add(records.get(i).copyRecord());
             if (records.get(i).getLAT() > S)
                 S = records.get(i).getLAT();

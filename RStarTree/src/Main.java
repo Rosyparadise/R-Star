@@ -30,7 +30,7 @@ public class Main {
         //Delete.delete(39.7160812,20.6005205);
         //Insert.insert(40,new Record(40,20,14183));
         FileHandler.readIndexFile();
-        Delete.delete(39.7794334,20.7453182);
+        Delete.delete(39.801048,20.7306138);
         FileHandler.readIndexFile();
 
 
@@ -47,8 +47,9 @@ public class Main {
             }
             System.out.println();
         }
+        */
 
-         */
+
 
 
 
@@ -57,11 +58,25 @@ public class Main {
         FileHandler.createIndexFile(true);
 
         FileHandler.readFirstIndexfileBlock();
+        FileHandler.debug();
+        Delete.delete( 39.7799435, 20.7441187);
+        System.out.println();
+        System.out.println("root");
+        for (int i=0;i<4;i++)
+        {
+            for (int j=0;j<2;j++)
+            {
+                System.out.print(FileHandler.getRootMBR()[i][j]+ " ");
+            }
+            System.out.println();
+        }
+        System.out.println("RECORDS SIZE = " + FileHandler.getRecords().size());
 
-
-        Delete.delete(39.7794334,20.7453182);
-        FileHandler.readIndexFile();
          */
+
+
+
+
 
 
 

@@ -4,6 +4,8 @@ import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.Queue;
 
 public class Split {
     private static final double m=0.4;
@@ -304,6 +306,7 @@ public class Split {
                 indexfile.write(dataBlock2);
                 //System.out.println("health x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
 
+                //TODO: CHECK THIS?
                 if (!FileHandler.isBottomUp()) {
                     byte[] tempMetaData = ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks());
                     indexfile.seek(Integer.BYTES);
@@ -450,7 +453,7 @@ public class Split {
             }
         }
     }
-
+    //TODO: Change readAllBytes with RandomAccessFile's read method (for the whole project, will most likely reduce build time)
     private static void splitRectangle(int parentPointer,Double[][] secondmbr,Integer leafPos)
     {
         String IndexfilePath = FileHandler.getIndexfilePath();
@@ -499,6 +502,7 @@ public class Split {
                 bytecounter += Integer.BYTES;
             }
             tempMBR_AL.add(secondmbr);
+
             IDs.add(leafPos);
 
 
@@ -577,11 +581,26 @@ public class Split {
 
             RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
 
-
+            Integer new_first_pos;
             byte[] new_first = new byte[blockSize];
-            System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()),0,new_first,0,Integer.BYTES);
+            if(parentPointer==1)
+            {
+                FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
+                System.arraycopy(ConversionToBytes.intToBytes(1),0,new_first,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(parentPointer),0,new_first,Integer.BYTES*2,Integer.BYTES);
+                if (FileHandler.getEmptyBlocks().isEmpty())
+                    new_first_pos = FileHandler.getNoOfIndexfileBlocks();
+                else
+                    new_first_pos = FileHandler.getEmptyBlocks().remove();
+
+            }
+            else
+            {
+                System.arraycopy(ConversionToBytes.intToBytes(blockLevel),0,new_first,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(parentOfParent),0,new_first,Integer.BYTES*2,Integer.BYTES);
+                new_first_pos=parentPointer;
+            }
             System.arraycopy(ConversionToBytes.intToBytes(first.size()),0,new_first,Integer.BYTES,Integer.BYTES);
-            System.arraycopy(ConversionToBytes.intToBytes(parentPointer),0,new_first,Integer.BYTES*2,Integer.BYTES);
 
             int counter = 3 * Integer.BYTES;
 
@@ -598,20 +617,24 @@ public class Split {
                 counter+=Integer.BYTES;
             }
 
-            FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
-            Integer new_first_pos;
-            if (FileHandler.getEmptyBlocks().isEmpty())
-                new_first_pos = FileHandler.getNoOfIndexfileBlocks();
-            else
-                new_first_pos = FileHandler.getEmptyBlocks().remove();
+
 
             indexfile.seek((long) new_first_pos * blockSize);
             indexfile.write(new_first);
 
             byte[] new_second = new byte[blockSize];
-            System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()),0,new_second,0,Integer.BYTES);
+            if(parentPointer==1)
+            {
+                System.arraycopy(ConversionToBytes.intToBytes(1),0,new_second,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(parentPointer),0,new_second,Integer.BYTES*2,Integer.BYTES);
+            }
+            else
+            {
+                System.arraycopy(ConversionToBytes.intToBytes(blockLevel),0,new_second,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(parentOfParent),0,new_second,Integer.BYTES*2,Integer.BYTES);
+            }
+
             System.arraycopy(ConversionToBytes.intToBytes(second.size()),0,new_second,Integer.BYTES,Integer.BYTES);
-            System.arraycopy(ConversionToBytes.intToBytes(parentPointer),0,new_second,Integer.BYTES*2,Integer.BYTES);
 
             counter = 3 * Integer.BYTES;
 
@@ -638,58 +661,67 @@ public class Split {
             indexfile.seek((long) new_second_pos * blockSize);
             indexfile.write(new_second);
 
-
-            byte[] replaceOldRectangle = new byte[blockSize];
-            System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()-1),0,replaceOldRectangle,0,Integer.BYTES);
-            System.arraycopy(ConversionToBytes.intToBytes(2),0,replaceOldRectangle,Integer.BYTES,Integer.BYTES);
-            System.arraycopy(ConversionToBytes.intToBytes(parentOfParent),0,replaceOldRectangle,Integer.BYTES*2,Integer.BYTES);
-            counter = 3 * Integer.BYTES;
-
-
             Double[][] firstmbrpoints = rectangle_to_points(firstMBR);
             Double[][] secondmbrpoints = rectangle_to_points(secondMBR);
 
-            for (int i=0;i<2;i++) {
-                for (int j=0;j<dimensions;j++)
-                {
-                    for (int k=0;k<dimensions;k++)
-                    {
-                        if (i==0)
-                            System.arraycopy(ConversionToBytes.doubleToBytes(firstmbrpoints[j][k]), 0, replaceOldRectangle, counter, Double.BYTES);
-                        else
-                            System.arraycopy(ConversionToBytes.doubleToBytes(secondmbrpoints[j][k]), 0, replaceOldRectangle, counter, Double.BYTES);
 
-                        counter+= Double.BYTES;
-                    }
-                }
-                if (i==0)
-                    System.arraycopy(ConversionToBytes.intToBytes(new_first_pos), 0, replaceOldRectangle, counter, Integer.BYTES);
-                else
-                    System.arraycopy(ConversionToBytes.intToBytes(new_second_pos), 0, replaceOldRectangle, counter, Integer.BYTES);
-
-                counter+=Integer.BYTES;
-            }
-
-            indexfile.seek((long) parentPointer *blockSize);
-            indexfile.write(replaceOldRectangle);
-
-            FileHandler.setLeafLevel(FileHandler.getLeafLevel()+1);
-
-            if (FileHandler.isBottomUp())
-                FileHandler.getBtm().setleaflevelFINAL(FileHandler.getLeafLevel());
-
-            for (int i=0;i<first.size();i++)
+            if (parentPointer==1)
             {
-                indexfile.seek((long) firstIDs.get(i)*blockSize);
-                indexfile.write(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()));
-                indexfile.seek((long) firstIDs.get(i)*blockSize+2*Integer.BYTES);
-                indexfile.write(ConversionToBytes.intToBytes(new_first_pos));
+                byte[] replaceOldRectangle = new byte[blockSize];
+                System.arraycopy(ConversionToBytes.intToBytes(0),0,replaceOldRectangle,0,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(2),0,replaceOldRectangle,Integer.BYTES,Integer.BYTES);
+                System.arraycopy(ConversionToBytes.intToBytes(-1),0,replaceOldRectangle,Integer.BYTES*2,Integer.BYTES);
+                counter = 3 * Integer.BYTES;
+
+
+
+
+                for (int i=0;i<2;i++) {
+                    for (int j=0;j<dimensions;j++)
+                    {
+                        for (int k=0;k<dimensions;k++)
+                        {
+                            if (i==0)
+                                System.arraycopy(ConversionToBytes.doubleToBytes(firstmbrpoints[j][k]), 0, replaceOldRectangle, counter, Double.BYTES);
+                            else
+                                System.arraycopy(ConversionToBytes.doubleToBytes(secondmbrpoints[j][k]), 0, replaceOldRectangle, counter, Double.BYTES);
+
+                            counter+= Double.BYTES;
+                        }
+                    }
+                    if (i==0)
+                        System.arraycopy(ConversionToBytes.intToBytes(new_first_pos), 0, replaceOldRectangle, counter, Integer.BYTES);
+                    else
+                        System.arraycopy(ConversionToBytes.intToBytes(new_second_pos), 0, replaceOldRectangle, counter, Integer.BYTES);
+
+                    counter+=Integer.BYTES;
+                }
+
+                indexfile.seek((long) parentPointer *blockSize);
+                indexfile.write(replaceOldRectangle);
+
+                FileHandler.setLeafLevel(FileHandler.getLeafLevel()+1);
+
+                if (FileHandler.isBottomUp())
+                    FileHandler.getBtm().setleaflevelFINAL(FileHandler.getLeafLevel());
+
+                for (int i=0;i<first.size();i++)
+                {
+                    indexfile.seek((long) firstIDs.get(i)*blockSize);
+                    indexfile.write(ConversionToBytes.intToBytes(2));
+                    indexfile.seek((long) firstIDs.get(i)*blockSize+2*Integer.BYTES);
+                    indexfile.write(ConversionToBytes.intToBytes(new_first_pos));
+                }
             }
+
 
             for (int i=0;i<second.size();i++)
             {
-                indexfile.seek((long) secondIDs.get(i)*blockSize);
-                indexfile.write(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()));
+                if (parentPointer==1)
+                {
+                    indexfile.seek((long) secondIDs.get(i) * blockSize);
+                    indexfile.write(ConversionToBytes.intToBytes(2));
+                }
                 indexfile.seek((long) secondIDs.get(i)*blockSize+2*Integer.BYTES);
                 indexfile.write(ConversionToBytes.intToBytes(new_second_pos));
             }
@@ -699,9 +731,84 @@ public class Split {
             indexfile.seek(Integer.BYTES*2);
             indexfile.write(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()));
 
+            if (parentPointer!=1)
+            {
+                byte[] noOfPtrEntries = new byte[Integer.BYTES];
+                indexfile.seek(parentOfParent*blockSize+Integer.BYTES);
+                indexfile.read(noOfPtrEntries,0,Integer.BYTES);
+
+                if (ByteBuffer.wrap(noOfPtrEntries).getInt()==FileHandler.calculateMaxBlockRectangles())
+                {
+
+
+                    splitRectangle(parentOfParent,secondmbrpoints,new_second_pos);
+                }
+                else
+                {
+                    indexfile.seek(parentOfParent*blockSize+Integer.BYTES);
+                    indexfile.write(ConversionToBytes.intToBytes(ByteBuffer.wrap(noOfPtrEntries).getInt()+1));
+                    indexfile.seek(parentOfParent*blockSize+3*Integer.BYTES+(ByteBuffer.wrap(noOfPtrEntries).getInt()*(4*Double.BYTES+Integer.BYTES)));
+                    for (int i=0;i<dimensions;i++)
+                    {
+                        for (int j=0;j<dimensions;j++)
+                        {
+                            indexfile.write(ConversionToBytes.doubleToBytes(secondmbrpoints[i][j]));
+                        }
+                    }
+                    indexfile.write(ConversionToBytes.intToBytes(new_second_pos));
+                }
+            }
+            else
+            {
+                readjustheights(axisLeastMarginIDs,indexfile);
+            }
         }
         catch (IOException e)
         {
+            e.printStackTrace();
+        }
+    }
+
+    private static void readjustheights(ArrayList<Integer> toReadjust,RandomAccessFile indexfile)
+    {
+        try {
+            Queue<Integer> pointers = new LinkedList<>();
+
+            for (int i = 0; i < toReadjust.size(); i++) {
+                boolean first = true;
+                pointers.add(toReadjust.get(i));
+                int blockId;
+                while (!pointers.isEmpty()) {
+
+
+                    blockId=pointers.peek();
+                    indexfile.seek(blockId*FileHandler.getBlockSize()+4*Double.BYTES + 3*Integer.BYTES);
+                    byte[] test = new byte[Integer.BYTES];
+                    indexfile.read(test,0,Integer.BYTES);
+                    if (!(ByteBuffer.wrap(test).getInt()<=0 || ByteBuffer.wrap(test).getInt()>FileHandler.getNoOfIndexfileBlocks()))
+                    {
+                        ArrayList<Rectangle> rectangles = FileHandler.getRectangleEntries(blockId);
+                        for (Rectangle rectangle : rectangles) {
+                            pointers.add(rectangle.getChildPointer());
+                        }
+                    }
+
+                    if (!first)
+                    {
+                        indexfile.seek((long) blockId *FileHandler.getBlockSize());
+                        byte[] temp = new byte[Integer.BYTES];
+                        indexfile.read(temp,0,Integer.BYTES);
+                        indexfile.seek((long) blockId *FileHandler.getBlockSize());
+                        indexfile.write(ConversionToBytes.intToBytes(ByteBuffer.wrap(temp).getInt()+1));
+                    }
+
+
+                    first=false;
+                    pointers.remove();
+                }
+            }
+        }
+        catch (Exception e) {
             e.printStackTrace();
         }
     }

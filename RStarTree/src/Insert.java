@@ -80,7 +80,6 @@ public class Insert {
 
     public static void overflowTreatment(int treeLevel,int blockid, Record troublemaker)
     {
-        //System.out.println("overflow"  + troublemaker.getId());
         if (treeLevel!=overflowLevel)
         {
             overflow_first_time=true;

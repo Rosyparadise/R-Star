@@ -5,7 +5,9 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileWriter;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
@@ -332,14 +334,98 @@ public class FileHandler {
             //3179 first split after reinsert
             //246 for 512 byte blocksize
             //354
-            if (counter == 200)
-                break;
+            //565
+            //1800
+            //1912
+            //2231
+           //if (counter == 200 )
+            //break;
+        }
+    }
+
+    public static void debug(){
+        try {
+            File file = new File(IndexfilePath);
+            byte[] bytes = Files.readAllBytes(file.toPath());
+            // for each block in index file other than the metadata block
+            for (int i = 1; i < noOfIndexfileBlocks+1; i++){
+                byte[] block = new byte[blockSize];
+                System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
+
+                // read the metadata
+                byte[] level = new byte[Integer.BYTES];
+                byte[] currentNoOfEntries = new byte[Integer.BYTES];
+                byte[] parentPointer = new byte[Integer.BYTES];
+
+                System.arraycopy(block, 0, level, 0, Integer.BYTES);
+                System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
+                System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
+
+                int tempLevel = ByteBuffer.wrap(level).getInt();
+                int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
+                int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
+
+                if (tempLevel == leafLevel){
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of entries: " + tempCurrentNoOfEntries +
+                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
+
+                    byte[] LATarray = new byte[Double.BYTES];
+                    byte[] LONarray = new byte[Double.BYTES];
+                    byte[] RecordIdArray = new byte[Integer.BYTES];
+                    int bytecounter = 3 * Integer.BYTES;
+
+                    for (int j = 0; j < tempCurrentNoOfEntries; j++){
+                        System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
+
+                        System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
+                        System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
+                        bytecounter += 2 * Double.BYTES + Integer.BYTES;
+
+                        double LAT = ByteBuffer.wrap(LATarray).getDouble();
+                        double LON = ByteBuffer.wrap(LONarray).getDouble();
+                        int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
+
+                        System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId+ ", Datafile block: " +
+                                records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
+                                records.get(recordId).getRecordLocation().getSlot());
+                    }
+                }
+                else
+                {
+                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of rectangles: " +
+                            tempCurrentNoOfEntries + ", Leaf level: " + leafLevel +
+                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
+
+                    int bytecounter = 3 * Integer.BYTES;
+                    byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
+
+                    for (int j=0;j < tempCurrentNoOfEntries; j++)
+                    {
+                        for (int k=0;k<2;k++)
+                        {
+                            for (int c=0;c<dimensions;c++)
+                            {
+                                System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
+                                bytecounter+=Double.BYTES;
+                                System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
+                            }
+                        }
+                        System.out.println();
+                        pointsArray= new byte[2][dimensions][Double.BYTES];
+                        bytecounter+=Integer.BYTES;
+                    }
+                    System.out.println();
+                }
+            }
+        } catch (Exception e){
+            e.printStackTrace();
         }
     }
 
     public static void readIndexFile() {
         try {
             Queue<Integer> pointers = new LinkedList<>();
+            BufferedWriter writer = new BufferedWriter(new FileWriter("treeOutput.txt"));
 
             if (FileHandler.getNoOfIndexfileBlocks() >= 1) {
                 pointers.add(1);
@@ -351,50 +437,50 @@ public class FileHandler {
                     if (level != leafLevel){
                         ArrayList<Rectangle> rectangles = getRectangleEntries(blockId);
 
-                        System.out.println("Block No: " + blockId +
+                        writer.write("Block No: " + blockId +
                                 ", Level: " + level +
                                 ", No of rectangles: " + rectangles.size() +
                                 ", Leaf level: " + leafLevel +
                                 ", Parent block id: " + getMetaDataOfRectangle(blockId).get(2) +
-                                "\nRecords: ");
+                                "\nRecords: \n");
 
 
                         for (Rectangle rectangle: rectangles) {
-                            System.out.println(
+                            writer.write(
                                     "LAT: " + rectangle.getCoordinates().get(0) +
                                             ", " + rectangle.getCoordinates().get(dimensions) +
                                             ", LON: " + rectangle.getCoordinates().get(1) +
-                                            ", " + rectangle.getCoordinates().get(1 + dimensions)
+                                            ", " + rectangle.getCoordinates().get(1 + dimensions) + "\n"
                             );
                             pointers.add(rectangle.getChildPointer());
                         }
                     } else {
                         ArrayList<Record> records = getRecords(blockId);
 
-                        System.out.println("Block No: " + blockId +
+                        writer.write("Block No: " + blockId +
                                 ", Level: " + level +
                                 ", No of entries: " + records.size() +
                                 ", Parent block id: " + getMetaDataOfRectangle(blockId).get(2) +
-                                "\nRecords: ");
+                                "\nRecords:" + "\n");
 
                         for (Record record: records) {
-                            System.out.print("LAT: " + record.getLAT() +
+                            writer.write("LAT: " + record.getLAT() +
                                     ", LON: " + record.getLON() +
                                     ", Datafile block: " + record.getRecordLocation().getBlock() +
                                     ", Block slot: " + record.getRecordLocation().getSlot());
 
                             if (record.getName() != null && !record.getName().equals("")) {
-                                System.out.print(", Name: " + record.getName());
+                                writer.write(", Name: " + record.getName());
                             }
 
                             if (record.getNodeId() != 0) {
-                                System.out.print(", Node ID: " + record.getId());
+                                writer.write(", Node ID: " + record.getId());
                             }
+                            writer.write("\n");
 
-                            System.out.println();
                         }
                     }
-                    System.out.println();
+                    writer.write("\n");
                     pointers.remove();
                 }
             }
