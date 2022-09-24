@@ -30,7 +30,7 @@ public class FileHandler {
     private static final char blockSeparator = '#';
     private static boolean bottomUp = false;
     private static BottomUp btm= null;
-    private static final int blockSize = 512; //32KB (KB=1024B) // 512 | 32768
+    private static final int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
     private static ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
 
@@ -483,6 +483,7 @@ public class FileHandler {
                     writer.write("\n");
                     pointers.remove();
                 }
+                writer.close();
             }
         } catch (Exception e) {
             e.printStackTrace();
