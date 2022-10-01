@@ -138,7 +138,7 @@ public class UserInterface {
             }
 
         } while (coordinates.size() < dimensions);
-
+        scanner.nextLine();
         return coordinates;
     }
 
@@ -168,7 +168,7 @@ public class UserInterface {
         do {
             System.out.print("Input: ");
             userInput = scanner.nextLine();
-        } while ((!userInput.equals("1") || (userInput.equals("1")&& isBuilt) ) && !userInput.equals("2") && !userInput.equals("3") &&
+        } while ((!userInput.equals("1") || (userInput.equals("1") && isBuilt) ) && !userInput.equals("2") && !userInput.equals("3") &&
                 !userInput.equals("Build") && !userInput.equals("Reuse") && !userInput.equals("ESC"));
 
         System.out.println();
@@ -279,7 +279,6 @@ public class UserInterface {
         switch (userInput) {
             case "1", "Insert" -> insertMenu();
             case "2", "Delete" -> {
-                System.out.println("Insert the value of the point you want to delete for each dimension: ");
                 ArrayList<Double> coords = getPointFromUser();
                 Delete.delete(coords.get(0), coords.get(1));
             }
@@ -294,6 +293,10 @@ public class UserInterface {
             case "5", "Skyline Query" -> {
                 SkylineQuery skylineQuery = new SkylineQuery();
                 skylineQuery.print();
+
+                // remove
+                FileHandler.readIndexFile();
+//                System.out.println(FileHandler.getRecords().size());
             }
             case "6", "Linear search Range Query" -> {
                 LinearSearchRangeQuery rangeQuery = new LinearSearchRangeQuery(getRangeQueryRectangle());

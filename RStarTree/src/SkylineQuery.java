@@ -1,13 +1,13 @@
 import java.util.*;
 
 public class SkylineQuery {
-    private final Stack<Integer> pointers;
+    private final PriorityQueue<SkylinePair> pointers;
     private final ArrayList<Record> result;
     private final int dimensions;
 
     SkylineQuery() {
         this.dimensions = FileHandler.getDimensions();
-        pointers = new Stack<>();
+        pointers = new PriorityQueue<>((Comparator.comparingDouble(o -> Math.abs(o.getCoordinates().get(0)) + Math.abs(o.getCoordinates().get(1)))));
         result = new ArrayList<>();
         this.skylineQuery();
     }
@@ -15,12 +15,12 @@ public class SkylineQuery {
     private void skylineQuery() {
         try {
             if (FileHandler.getNoOfIndexfileBlocks() > 1) {
-                pointers.add(1);
+                pointers.add(new SkylinePair(1, new ArrayList<>()));
                 int blockId, level;
 
                 while (!pointers.isEmpty()){
-                    blockId = pointers.peek();
-                    pointers.pop();
+                    blockId = pointers.peek().getId();
+                    pointers.remove();
 
                     level = FileHandler.getMetaDataOfRectangle(blockId).get(0);
 
@@ -29,7 +29,6 @@ public class SkylineQuery {
 
                         outerLoop:
                         for (Rectangle rectangle: rectangles) {
-//                            System.out.println(rectangle.getChildPointer());
                             if (!result.isEmpty()) {
                                 for (Record record: result) {
                                     if (record.getLON() <= rectangle.getCoordinates().get(0) &&
@@ -41,8 +40,7 @@ public class SkylineQuery {
                                     }
                                 }
                             }
-
-                            pointers.push(rectangle.getChildPointer());
+                            pointers.add(new SkylinePair(rectangle.getChildPointer(), rectangle.getCoordinates()));
                         }
                     } else {
                         ArrayList<Record> records = FileHandler.getRecords(blockId);
