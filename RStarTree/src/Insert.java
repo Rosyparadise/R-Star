@@ -7,10 +7,9 @@ import java.util.ArrayList;
 
 public class Insert {
     private static boolean overflow_first_time = false;
-    private static final boolean reinsert_just_ended = false;
     private static int overflowLevel = -1;
 
-    public static void insert(int leafLevel, Record record){
+    public static void insert(Record record){
         // call ChooseSubtree to find the best block to save the node and save it to blockId
 
         int blockId = ChooseSubtree.chooseSubtree(record, 1);
@@ -38,7 +37,6 @@ public class Insert {
             int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
             int parentPointer = ByteBuffer.wrap(parentPointerArray).getInt();
 
-            // check if it can be added
             if (tempCurrentNoOfEntries < FileHandler.calculateMaxBlockNodes()){
                 RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
                 // calculate the byte address which the node info will be written in the indexfile.
@@ -54,7 +52,6 @@ public class Insert {
                 indexfile.seek(ByteToWrite);
                 indexfile.write(datablock);
 
-                //HAVE TO CHANGE LATER, WORKS NOW CAUSE WE ONLY HAVE ROOT
                 if (blockId==1)
                     Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),record, tempCurrentNoOfEntries == 0,false);
                 else
@@ -192,6 +189,7 @@ public class Insert {
         }
     }
 
+    //if user adds node manually to the R* Tree, also add it to the datafile.
     public static void datafileRecordInsert(Record record) {
         int blockSize = FileHandler.getBlockSize();
         int dimensions = FileHandler.getDimensions();
@@ -287,7 +285,7 @@ public class Insert {
 
             FileHandler.setRecords(FileHandler.getDatafileRecords());
             if (name == null) {
-                insert(FileHandler.getLeafLevel(), new Record(
+                insert( new Record(
                         record.getCoords().get(0),
                         record.getCoords().get(1),
                         noOfDatafileBlocks,
@@ -298,7 +296,7 @@ public class Insert {
 
             }
             else {
-                insert(FileHandler.getLeafLevel(), new Record(
+                insert( new Record(
                         record.getCoords().get(0),
                         record.getCoords().get(1),
                         noOfDatafileBlocks,

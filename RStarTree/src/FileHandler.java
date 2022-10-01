@@ -51,12 +51,10 @@ public class FileHandler {
     private static void createFirstDatafileBlock(){
         try {
             FileHandler.noOfDatafileBlocks++;
-            //+noOfnodesInDatafile?
             byte[] dimensionArray = ConversionToBytes.intToBytes(dimensions);
             byte[] blocksizeArray = ConversionToBytes.intToBytes(blockSize);
             byte[] noOfBlocksArray = ConversionToBytes.intToBytes(noOfDatafileBlocks);
             byte[] blockData = new byte[blockSize];
-            //bytecounter for blockData
             int bytecounter = 0;
 
             // Copies dimensionArray in blockData starting from bytecounter(0) then increments by
@@ -76,27 +74,6 @@ public class FileHandler {
         }
     }
 
-    static void readFirstDatafileBlock(){
-        try{
-            File file = new File(DatafilePath);
-            //byte arrays to save serialized data from datafile inorder to deserialize them afterwards and print them
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            byte[] dimensionArray = new byte[4];
-            byte[] blocksizeArray = new byte[4];
-            byte[] noOfBlocksArray = new byte[4];
-
-            System.arraycopy(bytes, 0, dimensionArray, 0, dimensionArray.length);
-            System.arraycopy(bytes, 4, blocksizeArray, 0, blocksizeArray.length);
-            System.arraycopy(bytes, 8, noOfBlocksArray, 0, noOfBlocksArray.length);
-
-            int tempDimension = ByteBuffer.wrap(dimensionArray).getInt();
-            int tempBlockSize = ByteBuffer.wrap(blocksizeArray).getInt();
-            int tempnoOfBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
-            System.out.println("Dimensions: " + tempDimension + "\nBlock size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     static void retrieveOldFileInfo(){
         try{
@@ -142,7 +119,7 @@ public class FileHandler {
             Node block;
             //noOfNodes is the number of <nodes> in the .osm file
             long nodeId;
-            String name = "";
+            String name;
             ArrayList<Record> recordsToInsert = new ArrayList<>();
             long noOfNodes = doc.getElementsByTagName("node").getLength();
 
@@ -167,7 +144,6 @@ public class FileHandler {
                         {
                             //if there is, save the value of attribute v as the name
                             name = children.item(j).getAttributes().getNamedItem("v").getNodeValue();
-                            //.getBytes(StandardCharsets.UTF_8)
                             break;
                         }
                     }
@@ -180,6 +156,7 @@ public class FileHandler {
         }
     }
 
+    //saves data file records to arraylist. (used to insert and after that, read index file by matching entries using id)
     static ArrayList<Record> getDatafileRecords() {
         ArrayList<Record> datafileRecords = new ArrayList<>();
         try{
@@ -251,7 +228,6 @@ public class FileHandler {
                     if (ByteBuffer.wrap(blockSeparatorArray).getChar()==blockSeparator)
                         flag = false;
                 }
-//                System.out.println(bytecounter + " --");
             }
         } catch (Exception e){
             e.printStackTrace();
@@ -259,6 +235,8 @@ public class FileHandler {
         return datafileRecords;
     }
 
+
+    //point by point or bottom-up
     static void createIndexFile(boolean pbp){
         FileHandler.createFirstIndexfileBlock();
         records = new ArrayList<>(getDatafileRecords());
@@ -269,7 +247,7 @@ public class FileHandler {
 
         }
     }
-
+    //metadata for index file
     private static void createFirstIndexfileBlock(){
         try {
             byte[] blocksizeArray = ConversionToBytes.intToBytes(blockSize);
@@ -299,128 +277,15 @@ public class FileHandler {
         }
     }
 
-    static void readFirstIndexfileBlock(){
-        try{
-            File file = new File(IndexfilePath);
-            //byte arrays to save serialized data from indexfile inorder to deserialize them afterwards and print them
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            byte[] blocksizeArray = new byte[4];
-            byte[] noOfBlocksArray = new byte[4];
-            byte[] leafLevelArray = new byte[4];
-
-            System.arraycopy(bytes, 0, blocksizeArray, 0, blocksizeArray.length);
-            System.arraycopy(bytes, 4, noOfBlocksArray, 0, noOfBlocksArray.length);
-            System.arraycopy(bytes, 8, leafLevelArray, 0, leafLevelArray.length);
-
-
-            int tempBlockSize = ByteBuffer.wrap(blocksizeArray).getInt();
-            int tempnoOfBlocks = ByteBuffer.wrap(noOfBlocksArray).getInt();
-            int tempLeafLevel = ByteBuffer.wrap(leafLevelArray).getInt();
-
-            System.out.println("Block size: " + tempBlockSize + "\nNumber of blocks: " + tempnoOfBlocks + "\nLeaf level: " + tempLeafLevel);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
 
     private static void insertIndexfileNodes(){
         int counter = 0;
         for (Record record : records) {
-            Insert.insert(leafLevel, record);
+            Insert.insert(record);
             counter++;
-            //1639 to cause first split
-            //2398 to cause first reinsert
-            //2899 first reinsert for map2.osm
-            //3179 first split after reinsert
-            //246 for 512 byte blocksize
-            //354
-            //565
-            //1800
-            //1912
-            //2231
-           //if (counter == 200 )
-            //break;
         }
     }
 
-    public static void debug(){
-        try {
-            File file = new File(IndexfilePath);
-            byte[] bytes = Files.readAllBytes(file.toPath());
-            // for each block in index file other than the metadata block
-            for (int i = 1; i < noOfIndexfileBlocks+1; i++){
-                byte[] block = new byte[blockSize];
-                System.arraycopy(bytes, i * blockSize, block, 0, blockSize);
-
-                // read the metadata
-                byte[] level = new byte[Integer.BYTES];
-                byte[] currentNoOfEntries = new byte[Integer.BYTES];
-                byte[] parentPointer = new byte[Integer.BYTES];
-
-                System.arraycopy(block, 0, level, 0, Integer.BYTES);
-                System.arraycopy(block, Integer.BYTES, currentNoOfEntries, 0, Integer.BYTES);
-                System.arraycopy(block, 2 * Integer.BYTES, parentPointer, 0, Integer.BYTES);
-
-                int tempLevel = ByteBuffer.wrap(level).getInt();
-                int tempCurrentNoOfEntries = ByteBuffer.wrap(currentNoOfEntries).getInt();
-                int tempParentPointer = ByteBuffer.wrap(parentPointer).getInt();
-
-                if (tempLevel == leafLevel){
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of entries: " + tempCurrentNoOfEntries +
-                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
-
-                    byte[] LATarray = new byte[Double.BYTES];
-                    byte[] LONarray = new byte[Double.BYTES];
-                    byte[] RecordIdArray = new byte[Integer.BYTES];
-                    int bytecounter = 3 * Integer.BYTES;
-
-                    for (int j = 0; j < tempCurrentNoOfEntries; j++){
-                        System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
-
-                        System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
-                        System.arraycopy(block, bytecounter + 2 * Double.BYTES, RecordIdArray, 0, Integer.BYTES);
-                        bytecounter += 2 * Double.BYTES + Integer.BYTES;
-
-                        double LAT = ByteBuffer.wrap(LATarray).getDouble();
-                        double LON = ByteBuffer.wrap(LONarray).getDouble();
-                        int recordId = ByteBuffer.wrap(RecordIdArray).getInt();
-
-                        System.out.println("LAT: " + LAT + ", LON: " + LON + ", ID:" + recordId+ ", Datafile block: " +
-                                records.get(recordId).getRecordLocation().getBlock() + ", Block slot: " +
-                                records.get(recordId).getRecordLocation().getSlot());
-                    }
-                }
-                else
-                {
-                    System.out.println("Block No: " + i + ", Level: " + tempLevel + ", No of rectangles: " +
-                            tempCurrentNoOfEntries + ", Leaf level: " + leafLevel +
-                            ", Parent block id: " + tempParentPointer + "\nRecords: ");
-
-                    int bytecounter = 3 * Integer.BYTES;
-                    byte[][][] pointsArray= new byte[2][dimensions][Double.BYTES];
-
-                    for (int j=0;j < tempCurrentNoOfEntries; j++)
-                    {
-                        for (int k=0;k<2;k++)
-                        {
-                            for (int c=0;c<dimensions;c++)
-                            {
-                                System.arraycopy(block,bytecounter,pointsArray[k][c],0,Double.BYTES);
-                                bytecounter+=Double.BYTES;
-                                System.out.print(ByteBuffer.wrap(pointsArray[k][c]).getDouble() + " ");
-                            }
-                        }
-                        System.out.println();
-                        pointsArray= new byte[2][dimensions][Double.BYTES];
-                        bytecounter+=Integer.BYTES;
-                    }
-                    System.out.println();
-                }
-            }
-        } catch (Exception e){
-            e.printStackTrace();
-        }
-    }
 
     public static void readIndexFile() {
         try {
@@ -520,6 +385,7 @@ public class FileHandler {
         return (blockSize - metadataSize) / nodeInfoSize;
     }
 
+    //used for read index file
     public static ArrayList<Integer> getMetaDataOfRectangle(int id) {
         ArrayList<Integer> metadata = new ArrayList<>();
         byte[] levelArray = new byte[Integer.BYTES];
@@ -544,6 +410,7 @@ public class FileHandler {
         return metadata;
     }
 
+    //used for read index file
     public static ArrayList<Rectangle> getRectangleEntries(int id) {
         ArrayList<Rectangle> rectangles = new ArrayList<>();
 

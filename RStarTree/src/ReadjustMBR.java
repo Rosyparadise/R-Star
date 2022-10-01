@@ -5,9 +5,10 @@ import java.nio.file.Files;
 
 public class ReadjustMBR
 {
-
+    //readjust rectangle bounds by getting MBR from parent and then adding new entry to it.
     public static void reAdjustRectangleBounds(int blockId, int parentBlockId,Object troublemaker,boolean shrink)
     {
+        //has to have a parent
         if (parentBlockId!=-1)
         {
             try
@@ -43,7 +44,7 @@ public class ReadjustMBR
                 {
                     byte[] childBlockIdArray = new byte[Double.BYTES];
                     System.arraycopy(dataBlock, bytecounter + 4 * Double.BYTES, childBlockIdArray, 0, Integer.BYTES);
-
+                    //find which parent entry contains current block id and get its MBR
                     if (ByteBuffer.wrap(childBlockIdArray).getInt() == blockId)
                     {
                         for (int j = 0; j < 2; j++)
@@ -67,7 +68,7 @@ public class ReadjustMBR
                 Split.points_to_rectangle(MBR, rectangle);
                 for (int i=0;i<rectangle.length;i++)
                     System.arraycopy(rectangle[i], 0, rectangleNEW[i], 0, dimensions);
-
+                //find new MBR
                 if (tempBlockLevel+1==leafLevel) {
                     Split.calculateMBRpointbypoint(rectangle, (Record) troublemaker, false, shrink);
 
@@ -126,11 +127,12 @@ public class ReadjustMBR
 
             for (int i=0;i<rectangle.length;i++)
                 System.arraycopy(rectangle[i], 0, rectangleNEW[i], 0, dimensions);
-
+            //in case of root and if its a new record
             if (troublemaker instanceof Record) {
                 Split.calculateMBRpointbypoint(rectangle, (Record) troublemaker, false, shrink);
 
             }
+            //in case of root and if its a new rectangle
             else
             {
                 double[][] mbr = (double[][]) troublemaker;

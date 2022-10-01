@@ -41,7 +41,7 @@ public class Split {
             byte[] LATarray = new byte[Double.BYTES];
             byte[] LONarray = new byte[Double.BYTES];
             byte[] RecordIdArray = new byte[Integer.BYTES];
-
+            //collect all entries
             for (int j = 0; j < tempCurrentNoOfEntries; j++) {
                 System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
                 System.arraycopy(block, bytecounter + Double.BYTES, LONarray, 0, Double.BYTES);
@@ -52,6 +52,7 @@ public class Split {
             }
             tempRecords.add(troublemaker);
             double[][] mbr = calculateMBR(tempRecords);
+            //calculate midpoint of parent's MBR and sort based on the distance of the children from it.
             double[] mbr_midpoint = {(mbr[0][0] + mbr[3][0]) / 2.0,(mbr[0][1] + mbr[3][1]) / 2.0};
             for (int i = 0; i < tempRecords.size(); i++)
             {
@@ -65,7 +66,7 @@ public class Split {
                     }
                 }
             }
-
+            //seperate the 30% of entries that need to be seperated
             int amountToReInsert= (int) Math.floor(tempRecords.size()*p);
             ArrayList<Record> toReinsert = new ArrayList<>();
             for (int i=0;i<amountToReInsert;i++)
@@ -79,7 +80,7 @@ public class Split {
             System.arraycopy(parentPointerArray, 0, newBlock, Integer.BYTES*2, Integer.BYTES);
             bytecounter=Integer.BYTES*3;
             ArrayList<Record> remaining = new ArrayList<>();
-
+            //remove entries from overflowed block
             for (int i=toReinsert.size();i<tempRecords.size();i++)
             {
                 System.arraycopy(ConversionToBytes.doubleToBytes(tempRecords.get(i).getLAT()), 0, newBlock, bytecounter, Double.BYTES);
@@ -92,7 +93,7 @@ public class Split {
             }
 
             RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
-
+            //write block again
             indexfile.seek((long) blockId *blockSize);
             indexfile.write(newBlock);
             double[][] newMBR = calculateMBR(remaining);
@@ -100,9 +101,10 @@ public class Split {
 
 
             ReAdjustRectangleBounds.reAdjustRectangleBounds(blockId,parentPointer);
+            //re-insert 30% of entries
             for (int i=0;i<toReinsert.size();i++)
             {
-                Insert.insert(FileHandler.getLeafLevel(),toReinsert.get(i));
+                Insert.insert(toReinsert.get(i));
             }
             indexfile.close();
             return;
@@ -149,7 +151,7 @@ public class Split {
             byte[] LATarray = new byte[Double.BYTES];
             byte[] LONarray = new byte[Double.BYTES];
             byte[] RecordIdArray = new byte[Integer.BYTES];
-
+            //Collect M+1 entries in an arraylist
             for (int j=0;j<tempCurrentNoOfEntries;j++)
             {
                 System.arraycopy(block, bytecounter, LATarray, 0, Double.BYTES);
@@ -158,7 +160,7 @@ public class Split {
                 bytecounter += 2 * Double.BYTES + Integer.BYTES;
                 tempRecords.add(new Record(ByteBuffer.wrap(LATarray).getDouble(),ByteBuffer.wrap(LONarray).getDouble(),ByteBuffer.wrap(RecordIdArray).getInt()));
             }
-            tempRecords.add(troublemaker); //MIGHT NOT NEED RecordsDup
+            tempRecords.add(troublemaker);
             ArrayList<Record> recordsDup = new ArrayList<>(tempRecords);
             double margin_value=Double.MAX_VALUE;
 
@@ -166,6 +168,7 @@ public class Split {
             ArrayList<Record> second = new ArrayList<>();
             ArrayList<Record> axisLeastMargin= new ArrayList<>();
 
+            //sort based on every axis and then based on upper and lower values.
             for (int i=0;i<dimensions;i++)
             {
                 if (i==0)
@@ -181,6 +184,7 @@ public class Split {
                 else
                 {
                     Record.tempSort(recordsDup,1);
+                    //S1 From split algorithm
                     double temp=chooseSplitAxis(recordsDup,parentPointer);
                     if (temp<margin_value)
                     {
@@ -191,13 +195,15 @@ public class Split {
                 }
             }
 
+            //S2 From split algorithm
             int result_split = chooseSplitIndex(axisLeastMargin);
 
+            //S3 From split algorithm
             for (int l=0;l<result_split;l++)
                 first.add(axisLeastMargin.get(l));
 
 
-
+            //calculate MBRs of new blocks
             double[][] firstMBR;
             firstMBR=calculateMBR(first);
 
@@ -223,6 +229,7 @@ public class Split {
         int blockSize = FileHandler.getBlockSize();
         int dimensions = FileHandler.getDimensions();
         File file = new File(IndexfilePath);
+        //in case of first split
         if (blockId==1 && leafLevel==0)
         {
             try {
@@ -232,7 +239,7 @@ public class Split {
                 System.arraycopy(ConversionToBytes.intToBytes(2),0,dataBlock,Integer.BYTES,Integer.BYTES);
                 System.arraycopy(ConversionToBytes.intToBytes(-1),0,dataBlock,Integer.BYTES*2,Integer.BYTES);
                 int counter = 3 * Integer.BYTES;
-
+                //write MBRs on parent node
                 for (int i=0;i<Math.pow(2,dimensions);i+=Math.pow(2,dimensions)-1)
                 {
                     for (int j=0;j<dimensions;j++)
@@ -257,7 +264,7 @@ public class Split {
                 System.arraycopy(ConversionToBytes.intToBytes(leafLevel), 0,dataBlock1,0,Integer.BYTES);
                 System.arraycopy(ConversionToBytes.intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
                 System.arraycopy(ConversionToBytes.intToBytes(blockId), 0, dataBlock1, 2 * Integer.BYTES, Integer.BYTES);
-
+                //write records on 2 new blocks
                 int counter1 = 3 * Integer.BYTES;
                 for (Record record : first) {
                     System.arraycopy(ConversionToBytes.doubleToBytes(record.getLAT()), 0, dataBlock1, counter1, Double.BYTES);
@@ -297,6 +304,7 @@ public class Split {
 
                     counter2 += Integer.BYTES;
                 }
+                //write blocks in index file
                 RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
                 indexfile.seek((long) (FileHandler.getNoOfIndexfileBlocks() - 2) *blockSize);
                 indexfile.write(dataBlock);
@@ -304,9 +312,7 @@ public class Split {
                 indexfile.write(dataBlock1);
                 indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() *blockSize);
                 indexfile.write(dataBlock2);
-                //System.out.println("health x1,y1 = ("+ secondMBR[0][0] + " " + secondMBR[0][1]+") " + "x2,y1 = ("+ secondMBR[1][0] + " " + secondMBR[1][1]+") " + "x1,y2 = ("+ secondMBR[2][0] + " " + secondMBR[2][1]+") " + "x2,y2 = ("+ secondMBR[3][0] + " " + secondMBR[3][1]+") ");
 
-                //TODO: CHECK THIS?
                 if (!FileHandler.isBottomUp()) {
                     byte[] tempMetaData = ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks());
                     indexfile.seek(Integer.BYTES);
@@ -323,6 +329,7 @@ public class Split {
                 e.printStackTrace();
             }
         }
+        //in case its not the first split
         else
         {
             try {
@@ -338,7 +345,7 @@ public class Split {
                     {
                         byte[] childBlockIdArray = new byte[Double.BYTES];
                         System.arraycopy(dataBlock, bytecounter + 4 * Double.BYTES, childBlockIdArray, 0, Integer.BYTES);
-
+                        //find blockID location in parent and write split child's new MBR
                         if (ByteBuffer.wrap(childBlockIdArray).getInt() == blockId)
                         {
                             for (int j=0;j<Math.pow(2,dimensions);j+=Math.pow(2,dimensions)-1)
@@ -354,7 +361,7 @@ public class Split {
                             bytecounter += 4 * Double.BYTES + Integer.BYTES;
                     }
 
-
+                    //rewrite entries in split leaf node and create new leaf node with the remaining entries
                     byte[] dataBlock1 = new byte[blockSize];
                     System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()),0,dataBlock1,0,Integer.BYTES);
                     System.arraycopy(ConversionToBytes.intToBytes(first.size()),0,dataBlock1,Integer.BYTES,Integer.BYTES);
@@ -387,9 +394,10 @@ public class Split {
                         counter2 += Integer.BYTES;
                     }
                     RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
-
+                    //if there's enough room to add new rectangle
                     if (FileHandler.calculateMaxBlockRectangles()-ByteBuffer.wrap(noOfEntries).getInt()>0)
                     {
+                        //write second block's MBR to parent
                         bytecounter=ByteBuffer.wrap(noOfEntries).getInt()*(4 * Double.BYTES + Integer.BYTES) + 3*Integer.BYTES;
                         for (int j=0;j<Math.pow(2,dimensions);j+=Math.pow(2,dimensions)-1)
                         {
@@ -400,6 +408,7 @@ public class Split {
                             }
                         }
                         FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
+                        //find pointer for new block (might not be incremental since blocks could have been deleted and therefore freed up space).
                         if (FileHandler.getEmptyBlocks().isEmpty()) {
                             System.arraycopy(ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks()), 0, dataBlock, bytecounter, Integer.BYTES);
                         } else {
@@ -407,7 +416,7 @@ public class Split {
                         }
                         System.arraycopy(ConversionToBytes.intToBytes(ByteBuffer.wrap(noOfEntries).getInt()+1),0,dataBlock,Integer.BYTES,Integer.BYTES);
 
-
+                        //make changes in datafile
                         indexfile.seek((long) parentPointer *blockSize);
                         indexfile.write(dataBlock);
                         indexfile.seek((long) blockId *blockSize);
@@ -423,14 +432,13 @@ public class Split {
                         indexfile.write(ConversionToBytes.intToBytes(FileHandler.getNoOfIndexfileBlocks()));
 
                     }
-
+                    //in case theres not enough room in parent for another entry
                     else
                     {
                         indexfile.seek((long) parentPointer *blockSize);
                         indexfile.write(dataBlock);
                         indexfile.seek((long) blockId *blockSize);
                         indexfile.write(dataBlock1);
-
                         FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
                         if (FileHandler.getEmptyBlocks().isEmpty())
                             indexfile.seek((long) FileHandler.getNoOfIndexfileBlocks() * blockSize);
@@ -443,7 +451,7 @@ public class Split {
                         indexfile.seek(Integer.BYTES);
                         indexfile.write(tempMetaData);
 
-
+                        //call split again but for rectangles this time.
                         Double[][] secondmbr_points = rectangle_to_points(secondMBR);
                         splitRectangle(parentPointer,secondmbr_points,!FileHandler.getEmptyBlocks().isEmpty() ? FileHandler.getEmptyBlocks().remove() : FileHandler.getNoOfIndexfileBlocks());
                     }
@@ -453,7 +461,6 @@ public class Split {
             }
         }
     }
-    //TODO: Change readAllBytes with RandomAccessFile's read method (for the whole project, will most likely reduce build time)
     private static void splitRectangle(int parentPointer,Double[][] secondmbr,Integer leafPos)
     {
         String IndexfilePath = FileHandler.getIndexfilePath();
@@ -483,7 +490,7 @@ public class Split {
             int bytecounter = 3 * Integer.BYTES;
             byte[] tempBytes = new byte[Double.BYTES];
             byte[] tempIDBytes = new byte[Integer.BYTES];
-
+            //collect all MBRs of children + the M+1th one that caused the split
             for (int i=0;i<tempCurrentNoOfEntries;i++)
             {
                 for (int j = 0; j < dimensions; j++)
@@ -518,7 +525,8 @@ public class Split {
             ArrayList<Double [][]> duplicate = new ArrayList<>(tempMBR_AL);
             ArrayList<Integer> duplicateIDs = new ArrayList<>(IDs);
 
-
+            //calculate based on different axis and then by upper and lower value. Pick least sum of margin values
+            //S1 Of algorithm
             double temp;
             for (int i=0;i<dimensions;i++)
             {
@@ -558,9 +566,11 @@ public class Split {
                 }
             }
 
+            //s2 of algorithm
             int result_split = chooseSplitIndexOfRectangles(axisLeastMargin);
 
 
+            //s3 of algorithm
             for (int l=0;l<result_split;l++) {
                 first.add(axisLeastMargin.get(l));
                 firstIDs.add(axisLeastMarginIDs.get(l));
@@ -583,6 +593,7 @@ public class Split {
 
             Integer new_first_pos;
             byte[] new_first = new byte[blockSize];
+            //in case the overflowed block is the root and a new root must be created
             if(parentPointer==1)
             {
                 FileHandler.setNoOfIndexfileBlocks(FileHandler.getNoOfIndexfileBlocks() + 1);
@@ -594,6 +605,7 @@ public class Split {
                     new_first_pos = FileHandler.getEmptyBlocks().remove();
 
             }
+            //otherwise just add another rectangle in parent's parent.
             else
             {
                 System.arraycopy(ConversionToBytes.intToBytes(blockLevel),0,new_first,0,Integer.BYTES);
@@ -604,6 +616,7 @@ public class Split {
 
             int counter = 3 * Integer.BYTES;
 
+            //construct new blocks
             for (int i=0;i<first.size();i++) {
                 for (int j=0;j<dimensions;j++)
                 {
@@ -664,7 +677,7 @@ public class Split {
             Double[][] firstmbrpoints = rectangle_to_points(firstMBR);
             Double[][] secondmbrpoints = rectangle_to_points(secondMBR);
 
-
+            //in case the overflowed block is the root and a new root must be created
             if (parentPointer==1)
             {
                 byte[] replaceOldRectangle = new byte[blockSize];
@@ -675,7 +688,7 @@ public class Split {
 
 
 
-
+                //write the MBRs of the two children
                 for (int i=0;i<2;i++) {
                     for (int j=0;j<dimensions;j++)
                     {
@@ -700,6 +713,7 @@ public class Split {
                 indexfile.seek((long) parentPointer *blockSize);
                 indexfile.write(replaceOldRectangle);
 
+                //increase leaf level since a new level is created
                 FileHandler.setLeafLevel(FileHandler.getLeafLevel()+1);
 
                 if (FileHandler.isBottomUp())
@@ -731,6 +745,8 @@ public class Split {
             indexfile.seek(Integer.BYTES*2);
             indexfile.write(ConversionToBytes.intToBytes(FileHandler.getLeafLevel()));
 
+            //in case parent pointer isnt root and the addition of another rectangle has caused parent's parent to overflow.
+            //call splitRectangle recursively for as many levels as needed
             if (parentPointer!=1)
             {
                 byte[] noOfPtrEntries = new byte[Integer.BYTES];
@@ -739,10 +755,9 @@ public class Split {
 
                 if (ByteBuffer.wrap(noOfPtrEntries).getInt()==FileHandler.calculateMaxBlockRectangles())
                 {
-
-
                     splitRectangle(parentOfParent,secondmbrpoints,new_second_pos);
                 }
+                //if parent of parent not overflowed, adjust block's metadata and MBR accordingly
                 else
                 {
                     indexfile.seek(parentOfParent*blockSize+Integer.BYTES);
@@ -758,6 +773,7 @@ public class Split {
                     indexfile.write(ConversionToBytes.intToBytes(new_second_pos));
                 }
             }
+            //if new level was created that means the metadata in each block that signifies the level they're at must be changed.
             else
             {
                 readjustheights(axisLeastMarginIDs,indexfile);
@@ -769,8 +785,10 @@ public class Split {
         }
     }
 
+
     private static void readjustheights(ArrayList<Integer> toReadjust,RandomAccessFile indexfile)
     {
+        //readjust height of all block besides new root and its direct children
         try {
             Queue<Integer> pointers = new LinkedList<>();
 
@@ -779,8 +797,7 @@ public class Split {
                 pointers.add(toReadjust.get(i));
                 int blockId;
                 while (!pointers.isEmpty()) {
-
-
+                    //get id of block and add all of its children to the queue
                     blockId=pointers.peek();
                     indexfile.seek(blockId*FileHandler.getBlockSize()+4*Double.BYTES + 3*Integer.BYTES);
                     byte[] test = new byte[Integer.BYTES];
@@ -793,15 +810,16 @@ public class Split {
                         }
                     }
 
+                    //if first==true that means that the block is root's child which is already adjusted,
                     if (!first)
                     {
+                        //change level to level+1
                         indexfile.seek((long) blockId *FileHandler.getBlockSize());
                         byte[] temp = new byte[Integer.BYTES];
                         indexfile.read(temp,0,Integer.BYTES);
                         indexfile.seek((long) blockId *FileHandler.getBlockSize());
                         indexfile.write(ConversionToBytes.intToBytes(ByteBuffer.wrap(temp).getInt()+1));
                     }
-
 
                     first=false;
                     pointers.remove();
@@ -814,6 +832,7 @@ public class Split {
     }
 
 
+    //splιt's algorithm choosesplitindex
     private static int chooseSplitIndex(ArrayList<Record> axisLeastMargin)
     {
         double overlap;
@@ -861,7 +880,7 @@ public class Split {
     }
 
 
-
+    //chooseSplitIndex equivalent for rectangles
     private static int chooseSplitIndexOfRectangles(ArrayList<Double[][]> axisLeastMargin)
     {
         double overlap;
@@ -909,27 +928,27 @@ public class Split {
     }
 
 
-    private static double calcArea(double[][] firstMBR,double[][] secondMBR)
+    public static double calcArea(double[][] firstMBR,double[][] secondMBR)
     {
         double a =  (firstMBR[2][1]-firstMBR[0][1])*(firstMBR[1][0]-firstMBR[0][0]);
         double b =  (secondMBR[2][1]-secondMBR[0][1])*(secondMBR[1][0]-secondMBR[0][0]);
         return (a+b);
     }
 
-    private static double calcAreaDiff(double[][] firstMBR,double[][] secondMBR)
+    public static double calcAreaDiff(double[][] firstMBR,double[][] secondMBR)
     {
         double a =  (firstMBR[2][1]-firstMBR[0][1])*(firstMBR[1][0]-firstMBR[0][0]);
         double b =  (secondMBR[2][1]-secondMBR[0][1])*(secondMBR[1][0]-secondMBR[0][0]);
         return (a-b);
     }
 
-    private static double calcArea(double[][] firstMBR)
+    public static double calcArea(double[][] firstMBR)
     {
         double a =  (firstMBR[2][1]-firstMBR[0][1])*(firstMBR[1][0]-firstMBR[0][0]);
         return (a);
     }
 
-
+    //split's algorithm chooseSplitAxis
     private static double chooseSplitAxis(ArrayList<Record> recordsDup, int blockId) //BLOCKID TO GET PARENT AND THEREFORE MBR OF PARENT
     {
         double margin_value=0;
@@ -958,7 +977,7 @@ public class Split {
         return margin_value;
     }
 
-
+    //rectangle equivalent of chooseSplitAxis
     private static double chooseSplitAxisofRectangles(ArrayList<Double[][]> recordsDup, int blockId) //BLOCKID TO GET PARENT AND THEREFORE MBR OF PARENT
     {
         double margin_value=0;
@@ -1001,7 +1020,6 @@ public class Split {
             margin_value+=Math.abs(rootMBR[0][1]-childMBR[0][1]); //bottom margin
             margin_value+=Math.abs(rootMBR[0][0]-childMBR[0][0]); //left margin
             margin_value+=Math.abs(rootMBR[1][0]-childMBR[1][0]); //left margin
-            //TODO: Can be done with only two points
             //block is root so we use rootMBR. (I think this is how margin-values work, not sure though)
         }
         else
@@ -1010,7 +1028,8 @@ public class Split {
         }
         return margin_value;
     }
-    // TODO: 8/8/22 use wildcards instead of different functions?
+
+    //given an arraylist of Records (points), find their MBR
     private static double[][] calculateMBR(ArrayList<Record> firstTemp)
     {
         int dimensions = FileHandler.getDimensions();
@@ -1041,6 +1060,7 @@ public class Split {
         return firstMBR;
     }
 
+    //given an arraylist of rectangles, find their MBR
     public static double[][] calculateMBROfRectangles(ArrayList<Double[][]> duplicate)
     {
         int dimensions = FileHandler.getDimensions();
@@ -1052,7 +1072,6 @@ public class Split {
         resultMBR[1][0]=-1;
         for (Double[][] rect : duplicate)
         {
-            // TODO: Use for loop
             if (rect[0][0]<resultMBR[0][0])
             {
                 resultMBR[0][0] = rect[0][0];
@@ -1080,7 +1099,7 @@ public class Split {
     }
 
 
-    private static double calcOverlap(double[][] a, double[][] b)
+    public static double calcOverlap(double[][] a, double[][] b)
     {
         double area1 = Math.abs(a[0][0] - a[3][0]) * Math.abs(a[0][1] - a[3][1]);
         double area2 = Math.abs(b[0][0] - b[3][0]) * Math.abs(b[0][1] - b[3][1]);
@@ -1094,108 +1113,8 @@ public class Split {
         return (area1 + area2 - areaI);
     }
 
-    public static int determine_best_insertion_forRectangles(ArrayList<double[][]> rectangles, Record record)
-    {
-        int dimensions = FileHandler.getDimensions();
 
-        double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
-        double[][] temp3 = new double[(int)Math.pow(2,dimensions)][dimensions];
-
-        double area_diff=0;
-        double area=0;
-        double least_diff=Double.MAX_VALUE;
-        int result=0;
-
-        for (int i=0;i<rectangles.size();i++)
-        {
-            points_to_rectangle(rectangles.get(i),temp1);
-            for (int b=0;b<temp1.length;b++)
-                System.arraycopy(temp1[b], 0, temp3[b], 0, temp1[0].length);
-            calculateMBRpointbypoint(temp1,record,false,false);
-
-            area_diff=calcAreaDiff(temp1,temp3);
-
-            if (area_diff<least_diff)
-            {
-                least_diff=area_diff;
-                result=i;
-                area=calcArea(temp1);
-            }
-            else if (area_diff==least_diff)
-            {
-                double b = calcArea(temp1);
-                if (b<area)
-                {
-                    area=b;
-                    result=i;
-                }
-            }
-        }
-        return result;
-    }
-
-    public static int determine_best_insertion(ArrayList<double[][]> rectangles, Record record)
-    {
-        int dimensions = FileHandler.getDimensions();
-
-        double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
-        double[][] temp2 = new double[(int)Math.pow(2,dimensions)][dimensions];
-        double[][] temp3 = new double[(int)Math.pow(2,dimensions)][dimensions];
-
-        double temp_overlap=0;
-        double area_diff=0;
-        double area=0;
-        double least_overlap=Double.MAX_VALUE;
-        int result=0;
-
-        for (int i=0;i<rectangles.size();i++)
-        {
-            points_to_rectangle(rectangles.get(i),temp1);
-            for (int b=0;b<temp1.length;b++)
-                System.arraycopy(temp1[b], 0, temp3[b], 0, temp1[0].length);
-            calculateMBRpointbypoint(temp1,record,false,false);
-
-
-            for (int j=0;j<rectangles.size();j++)
-            {
-                if (j!=i)
-                {
-                    points_to_rectangle(rectangles.get(j),temp2);
-                    temp_overlap+=calcOverlap(temp1,temp2);
-                }
-            }
-            if (temp_overlap<least_overlap)
-            {
-                least_overlap=temp_overlap;
-                result=i;
-                area_diff=calcAreaDiff(temp1,temp3);
-                area=calcArea(temp1);
-            }
-            else if (temp_overlap==least_overlap)
-            {
-                double b = calcAreaDiff(temp1,temp3);
-                if (b<area_diff)
-                {
-                    area_diff=b;
-                    result=i;
-                    area=calcArea(temp1);
-                }
-                if (b==area_diff)
-                {
-                    double c = calcArea(temp1);
-                    if (c<area)
-                    {
-                        result=i;
-                        area=c;
-                    }
-                }
-            }
-            temp_overlap=0;
-        }
-
-        return result;
-    }
-
+    //4 points (whole rectangle) -> 2 points
     public static Double[][] rectangle_to_points(double[][] rectangle)
     {
         Double[][] points = new Double[FileHandler.getDimensions()][FileHandler.getDimensions()];
@@ -1205,6 +1124,7 @@ public class Split {
 
         return points;
     }
+    //2 points -> 4 points (whole rectangle)
     public static void points_to_rectangle(double[][] points,double[][] rectangle)
     {
         rectangle[0][0] = points[0][0];rectangle[0][1] = points[0][1];
@@ -1273,7 +1193,5 @@ public class Split {
             }
         }
     }
-
     public static double getM(){return m;}
-
 }

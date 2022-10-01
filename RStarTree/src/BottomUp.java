@@ -30,7 +30,7 @@ public class BottomUp {
             if (records.get(i).getLON() > S)
                 S = records.get(i).getLON();
         }
-
+        //sort records
         HilbertSort sort = new HilbertSort(subset_recs, S);
         Queue<Record> sortedList = sort.hilbertHelper();
 
@@ -42,15 +42,17 @@ public class BottomUp {
 
         try {
             RandomAccessFile indexfile = new RandomAccessFile("indexfile.dat", "rw");
+            //calculate needed leaf nodes to fit records
             int max_records = FileHandler.calculateMaxBlockNodes();
             int blockSize = FileHandler.getBlockSize();
+            //pre-calculate the levels needed to fit all the records and rectangles
             int leaflevel = getLevelsofTree(IDs.size());
 
             int iterations = (int) Math.ceil((double) IDs.size() / max_records);
             double[][][] MBRs = new double[iterations][4][2];
             int[] MBRs_ID = new int[iterations];
 
-
+            //number of records that each leaf node will contain
             ArrayList<Integer> leaf_sizes = new ArrayList<>();
             for (int i = 0; i < iterations; i++) {
                 if (i == iterations - 1) {
@@ -64,7 +66,7 @@ public class BottomUp {
                     leaf_sizes.add(max_records);
             }
 
-
+            //iterate through every leaf node needed to be filled
             for (int k = 0; k < iterations; k++) {
 
                 byte[] block = new byte[blockSize];
@@ -73,7 +75,7 @@ public class BottomUp {
                 System.arraycopy(ConversionToBytes.intToBytes(leaf_sizes.get(k)), 0, block, Integer.BYTES, Integer.BYTES);
 
                 int counter = 3 * Integer.BYTES;
-
+                //add records
                 for (int i = 0; i < leaf_sizes.get(k); i++) {
                     Record temp = records.get(IDs.remove(0));
                     System.arraycopy(ConversionToBytes.doubleToBytes(temp.getLAT()), 0, block, counter, Double.BYTES);
@@ -94,6 +96,8 @@ public class BottomUp {
                     e.printStackTrace();
                 }
             }
+
+            //in case there's only one level, set root.
             if (leaflevelFINAL<1)
                 FileHandler.setRootMBR(MBRs[0]);
 
@@ -105,7 +109,7 @@ public class BottomUp {
             int[] newMBR_ID;
             FileHandler.setRoot(1);
 
-
+            //for levels that contain rectangles as entries (>leaf level)
             while (iterations > 1) {
                 nonleaf_sizes = new ArrayList<>();
                 leaflevel--;
@@ -113,7 +117,7 @@ public class BottomUp {
                 newMBR = new double[iterations][][];
                 newMBR_ID = new int[iterations];
 
-
+                //calculate amount of blocks needed to contain the entries of the previous level
                 for (int i = 0; i < iterations; i++) {
                     if (i == iterations - 1) {
                         if (MBRs.length - (i * max_rectangles) < Math.floor(max_rectangles * Split.getM())) {
@@ -140,7 +144,7 @@ public class BottomUp {
                         Double[][] temp = Split.rectangle_to_points(MBRs[MBR_ID_counter]);
 
                         try {
-
+                            //since parent is decided, go to entries and fill in the metadata parent pointer
                             indexfile.seek(MBRs_ID[MBR_ID_counter] * blockSize + 2 * Integer.BYTES);
                             indexfile.write(ConversionToBytes.intToBytes(blockID));
 
@@ -149,7 +153,7 @@ public class BottomUp {
                             e.printStackTrace();
                         }
 
-
+                        //write mbr of children
                         for (int j = 0; j < FileHandler.getDimensions(); j++) {
                             for (int k = 0; k < FileHandler.getDimensions(); k++) {
                                 System.arraycopy(ConversionToBytes.doubleToBytes(temp[j][k]), 0, block, counter, Double.BYTES);
@@ -179,6 +183,8 @@ public class BottomUp {
                 MBRs_ID = newMBR_ID;
                 iterations = (int) Math.ceil((double) MBRs.length / max_rectangles);
             }
+
+            //if tree has more than one level (this takes care of the first level and sets the root mbr)
             if (leaflevelFINAL >= 1) {
                 leaflevel--;
                 ArrayList<Double[][]> tempmbr = new ArrayList<>();
@@ -190,7 +196,7 @@ public class BottomUp {
                 for (int i = 0; i < MBRs.length; i++) {
                     Double[][] temp = Split.rectangle_to_points(MBRs[i]);
                     try {
-
+                        //sets parent pointer in children
                         indexfile.seek(MBRs_ID[i] * blockSize + 2 * Integer.BYTES);
                         indexfile.write(ConversionToBytes.intToBytes(1));
 
@@ -198,7 +204,7 @@ public class BottomUp {
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-
+                    //write mbr of children
                     for (int j = 0; j < FileHandler.getDimensions(); j++) {
                         for (int k = 0; k < FileHandler.getDimensions(); k++) {
                             System.arraycopy(ConversionToBytes.doubleToBytes(temp[j][k]), 0, block, counter, Double.BYTES);
@@ -210,8 +216,7 @@ public class BottomUp {
                     tempmbr.add(temp);
 
                 }
-
-
+                //write file
                 try {
                     indexfile.seek(blockSize);
                     indexfile.write(block);
@@ -237,7 +242,6 @@ public class BottomUp {
 
             FileHandler.setNoOfIndexfileBlocks(blockID - 1);
             FileHandler.setLeafLevel(leaflevelFINAL);
-            //TODO: Merge leaflevelFINAL and noOfIndexFileBlocks and delete ifs from Split
 
             int[] metadata = new int[3];
             int counter=0;

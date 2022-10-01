@@ -108,5 +108,3 @@ public class Record {
         }
     }
 }
-
-//TODO: Can probably fix how sorting is implemented.

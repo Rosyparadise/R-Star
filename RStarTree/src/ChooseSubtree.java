@@ -91,14 +91,8 @@ public class ChooseSubtree {
                     temp = new double[dimensions][dimensions];
                 }
 
-//                for (int i=0;i<IDs.length;i++)
-//                {
-//                    System.out.println("IDs  = " + IDs[i]);;
-//                }
-                int result = Split.determine_best_insertion(rectangles, record);
+                int result = determine_best_insertion(rectangles, record);
                 return chooseSubtree(record, IDs[result]);
-
-                // change currentblock so that the function works recursively
             }
             else
             {
@@ -127,17 +121,121 @@ public class ChooseSubtree {
                     counter+=Integer.BYTES;
                     temp = new double[dimensions][dimensions];
                 }
-                int result = Split.determine_best_insertion_forRectangles(rectangles, record);
+                int result = determine_best_insertion_forRectangles(rectangles, record);
                 return chooseSubtree(record, IDs[result]);
                 // second if bracket in the else bracket in CS2
-                // change currentblock so that the function works recursively
             }
         }
         catch (Exception e)
         {
             e.printStackTrace();
         }
-        //return ChooseSubtree(leafLevel, record, currentBlock);
         return 1;
+    }
+
+
+    //calculates least overlap with siblings, among siblings. (rectangles)
+    public static int determine_best_insertion_forRectangles(ArrayList<double[][]> rectangles, Record record)
+    {
+        int dimensions = FileHandler.getDimensions();
+
+        double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double[][] temp3 = new double[(int)Math.pow(2,dimensions)][dimensions];
+
+        double area_diff=0;
+        double area=0;
+        double least_diff=Double.MAX_VALUE;
+        int result=0;
+
+        for (int i=0;i<rectangles.size();i++)
+        {
+            Split.points_to_rectangle(rectangles.get(i),temp1);
+            for (int b=0;b<temp1.length;b++)
+                System.arraycopy(temp1[b], 0, temp3[b], 0, temp1[0].length);
+            Split.calculateMBRpointbypoint(temp1,record,false,false);
+
+            area_diff=Split.calcAreaDiff(temp1,temp3);
+
+            if (area_diff<least_diff)
+            {
+                least_diff=area_diff;
+                result=i;
+                area=Split.calcArea(temp1);
+            }
+            else if (area_diff==least_diff)
+            {
+                double b = Split.calcArea(temp1);
+                if (b<area)
+                {
+                    area=b;
+                    result=i;
+                }
+            }
+        }
+        return result;
+    }
+
+    //calculates least overlap with siblings, among siblings.
+
+    public static int determine_best_insertion(ArrayList<double[][]> rectangles, Record record)
+    {
+        int dimensions = FileHandler.getDimensions();
+
+        double[][] temp1 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double[][] temp2 = new double[(int)Math.pow(2,dimensions)][dimensions];
+        double[][] temp3 = new double[(int)Math.pow(2,dimensions)][dimensions];
+
+        double temp_overlap=0;
+        double area_diff=0;
+        double area=0;
+        double least_overlap=Double.MAX_VALUE;
+        int result=0;
+
+        for (int i=0;i<rectangles.size();i++)
+        {
+            Split.points_to_rectangle(rectangles.get(i),temp1);
+            for (int b=0;b<temp1.length;b++)
+                System.arraycopy(temp1[b], 0, temp3[b], 0, temp1[0].length);
+            Split.calculateMBRpointbypoint(temp1,record,false,false);
+
+
+            for (int j=0;j<rectangles.size();j++)
+            {
+                if (j!=i)
+                {
+                    Split.points_to_rectangle(rectangles.get(j),temp2);
+                    temp_overlap+=Split.calcOverlap(temp1,temp2);
+                }
+            }
+            if (temp_overlap<least_overlap)
+            {
+                least_overlap=temp_overlap;
+                result=i;
+                area_diff=Split.calcAreaDiff(temp1,temp3);
+                area=Split.calcArea(temp1);
+            }
+            else if (temp_overlap==least_overlap)
+            {
+                double b = Split.calcAreaDiff(temp1,temp3);
+                if (b<area_diff)
+                {
+                    area_diff=b;
+                    result=i;
+                    area=Split.calcArea(temp1);
+                }
+                if (b==area_diff)
+                {
+                    double c = Split.calcArea(temp1);
+                    if (c<area)
+                    {
+                        result=i;
+                        area=c;
+                    }
+                }
+            }
+            temp_overlap=0;
+        }
+
+        return result;
     }
 }

@@ -107,8 +107,3 @@ public class Main {
 //        lskq.print();
     }
 }
-
-// LAT: 41.3850909, LON: 26.6241053, ID:349, Datafile block: 1, Block slot: 9113 node to be deleted in the first block
-// LAT: 41.4930671, LON: 26.5358795, ID:786, Datafile block: 1, Block slot: 20482 node to replace the deleted node ^
-// LAT: 39.7160812, 39.8955962, LON: 20.5650812, 20.6217563
-// LAT: 39.6877864, 39.8836309, LON: 20.6219575, 20.8595685

@@ -1,5 +1,7 @@
 import java.nio.ByteBuffer;
 
+
+//Helper class to convert data types to bytes
 public class ConversionToBytes {
     public static byte[] longToBytes(long x) {
         ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
