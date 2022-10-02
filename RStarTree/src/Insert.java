@@ -257,6 +257,7 @@ public class Insert {
                 file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
                 file.close();
             }
+//            System.out.println(noOfDatafileBlocks);
 
             tempByteCounter = byteCounter;
             nodeId = ConversionToBytes.longToBytes(record.getNodeId());
@@ -284,6 +285,7 @@ public class Insert {
 
 
             FileHandler.setRecords(FileHandler.getDatafileRecords());
+            FileHandler.setRoot(0);
             if (name == null) {
                 insert( new Record(
                         record.getCoords().get(0),

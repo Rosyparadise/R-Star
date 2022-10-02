@@ -337,6 +337,12 @@ public class UserInterface {
         System.out.print("Insert the new node Name or press enter if you want to leave it blank: ");
         name = scanner.nextLine();
         Insert.datafileRecordInsert(new Record(coords, nodeId, name));
-        System.out.println("\n ");
+        if (name.equals("")) {
+            System.out.println("The node with LAT: " + coords.get(0) + ", LON: " + coords.get(1) + " and ID: " + nodeId +
+                    " was successfully inserted.");
+        } else {
+            System.out.println("The node with LAT: " + coords.get(0) + ", LON: " + coords.get(1) + " ,ID: " + nodeId +
+                    " and Name: " + name + " was successfully inserted.");
+        }
     }
 }
