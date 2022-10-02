@@ -292,10 +292,11 @@ public class UserInterface {
         System.out.println();
 
         switch (userInput) {
-            case "1", "Insert" -> insertMenu();
+            case "1", "Insert" -> {insertMenu();FileHandler.readIndexFile();}
             case "2", "Delete" -> {
                 ArrayList<Double> coords = getPointFromUser();
                 Delete.delete(coords.get(0), coords.get(1));
+                FileHandler.readIndexFile();
             }
             case "3", "Range Query" -> {
                 RangeQuery rangeQuery = new RangeQuery(getRangeQueryRectangle());
