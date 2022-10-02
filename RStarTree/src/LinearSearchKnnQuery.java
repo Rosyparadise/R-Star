@@ -8,14 +8,17 @@ public class LinearSearchKnnQuery extends KnnQuery {
 
     protected void knnQuery() {
         ArrayList<Record> records = FileHandler.getDatafileRecords();
+
         for (Record record: records) {
             List<Double> recordCoords = List.of(record.getLAT(), record.getLON());
-            KnnDistanceRecordPair pair = new KnnDistanceRecordPair(record, calcDistBetweenPoints(
-                    new ArrayList<>(recordCoords),
-                    coordinates));
-            knn.add(pair);
-            if (knn.size() > k) {
-                knn.poll();
+            double distance = calcDistBetweenPoints(new ArrayList<>(recordCoords),coordinates);
+
+            if (distance > 0) {
+                KnnDistanceRecordPair pair = new KnnDistanceRecordPair(record, distance);
+                knn.add(pair);
+                if (knn.size() > k) {
+                    knn.poll();
+                }
             }
         }
     }
