@@ -141,15 +141,11 @@ public class ReadjustMBR
 
             }
 
-
-
-
             for (int l=0;l<rectangle.length;l++)
                 Split.calculateMBRpointbypoint(FileHandler.getRootMBR(),new Record(rectangle[l][0],rectangle[l][1],-1),false,shrink);
 
 
             return;
-
         }
     }
 }

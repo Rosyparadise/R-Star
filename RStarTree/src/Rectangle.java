@@ -1,7 +1,6 @@
 import java.util.ArrayList;
 
 public class Rectangle {
-//    private final double minLAT, minLON, maxLAT, maxLON;
     private final ArrayList<Double> coordinates;
     private int childPointer;
 

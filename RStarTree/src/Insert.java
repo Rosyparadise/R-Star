@@ -84,23 +84,13 @@ public class Insert {
         }
         if (treeLevel!=0 && overflow_first_time)
         {
-            //System.out.println("----------BEFORE REINSERT----------");
             overflow_first_time=false;
-            //FileHandler.readIndexFile();
 
             Split.reinsert(blockid,troublemaker);
-            //System.out.println("-----------AFTER REINSERT----------");
-            //FileHandler.readIndexFile();
         }
         else
         {
-            //System.out.println("----------BEFORE SPLIT----------");
-            //FileHandler.readIndexFile();
-
-            //System.out.println("split");
             Split.split(blockid, troublemaker);
-            //System.out.println("-----------AFTER SPLIT----------");
-            //FileHandler.readIndexFile();
 
             overflowLevel = -1;
         }
@@ -138,7 +128,6 @@ public class Insert {
                 // the metadata in first block get updated
                 if (tempByteCounter >= blockSize){
                     System.arraycopy(blockSeparatorArray, 0, blockData, byteCounter, blockSeparatorArray.length);
-//                    byteCounter += blockSeparatorArray.length;
 
                     RandomAccessFile file = new RandomAccessFile(FileHandler.getDatafilePath(), "rw");
                     file.seek((long) noOfDatafileBlocks * blockSize);

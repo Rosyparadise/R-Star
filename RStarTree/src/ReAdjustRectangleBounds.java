@@ -206,7 +206,6 @@ public class ReAdjustRectangleBounds {
                                         indexfileEdit = true;
                                     }
                                 }
-
                                 // if the data in the tree are edited, rewrite the block
                                 if (indexfileEdit) {
                                     RandomAccessFile indexfile = new RandomAccessFile(IndexfilePath, "rw");
@@ -223,7 +222,6 @@ public class ReAdjustRectangleBounds {
                     }
                     else
                     {
-
                         FileHandler.getRootMBR()[0][0]=minLat;FileHandler.getRootMBR()[0][1]=minLon;
 
                         FileHandler.getRootMBR()[1][0]=maxLat;FileHandler.getRootMBR()[1][1]=minLon;

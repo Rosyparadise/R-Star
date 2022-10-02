@@ -4,7 +4,6 @@ public class KnnQuery {
     protected final PriorityQueue<KnnDistanceRecordPair> knn;
     private final PriorityQueue<KnnDistanceRectanglePair> pointers;
     protected final int dimensions, k;
-//    private double lat, lon;
     protected final ArrayList<Double> coordinates;
 
     KnnQuery(int k, ArrayList<Double> coordinates) {

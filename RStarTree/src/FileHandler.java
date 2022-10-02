@@ -24,7 +24,7 @@ public class FileHandler {
     private static final String OsmfilePath = "map2.osm";
     private static final String DatafilePath = "datafile.dat";
     private static final String IndexfilePath = "indexfile.dat";
-    private static int dimensions; //2 for testing
+    private static int dimensions;
     private static double[][] rootMBR;
     private static final char delimiter = '$';
     private static final char blockSeparator = '#';

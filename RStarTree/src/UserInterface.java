@@ -301,10 +301,6 @@ public class UserInterface {
             case "5", "Skyline Query" -> {
                 SkylineQuery skylineQuery = new SkylineQuery();
                 skylineQuery.print();
-
-                // remove
-                FileHandler.readIndexFile();
-//                System.out.println(FileHandler.getRecords().size());
             }
             case "6", "Linear search Range Query" -> {
                 LinearSearchRangeQuery rangeQuery = new LinearSearchRangeQuery(getRangeQueryRectangle());

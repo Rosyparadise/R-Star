@@ -256,11 +256,9 @@ public class BottomUp {
                     e.printStackTrace();
                 }
             }
-
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-
     }
 
 
@@ -270,7 +268,6 @@ public class BottomUp {
         while (temp > 1) {
             temp = (int) Math.ceil((double) temp / FileHandler.calculateMaxBlockRectangles());
             result++;
-
         }
         return result;
     }
