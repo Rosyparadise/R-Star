@@ -235,22 +235,30 @@ public class UserInterface {
 
         if (userInput.equals("1") || userInput.equals("Point by point")) {
             System.out.println("Parsing data...");
+            long start = System.currentTimeMillis();
             FileHandler.createDataFile(dimensions);
             System.out.println("Tree is being built...");
             FileHandler.createIndexFile(true);
             FileHandler.readIndexFile();
-            System.out.println("Tree structure is located in treeOutput.txt");
+            long end = System.currentTimeMillis();
+            double elapsedTime = (double)(end - start)/1000;
+            System.out.println("Total elapsed time :" + elapsedTime + " seconds\n");
+            System.out.println("Tree structure is located in treeOutput.txt\n");
             isBuilt=true;
             treeOptionsMenu();
         } else if (userInput.equals("2") || userInput.equals("Bottom-up")) {
             System.out.println("Parsing data...");
+            long start = System.currentTimeMillis();
             FileHandler.createDataFile(dimensions);
             System.out.println("Tree is being built...");
             FileHandler.createIndexFile(false);
             BottomUp bottomUp = new BottomUp();
             bottomUp.construct();
             FileHandler.readIndexFile();
-            System.out.println("Tree structure is located in treeOutput.txt");
+            long end = System.currentTimeMillis();
+            double elapsedTime = (double)(end - start)/1000;
+            System.out.println("Total elapsed time :" + elapsedTime + " seconds\n");
+            System.out.println("Tree structure is located in treeOutput.txt\n");
             isBuilt=true;
             treeOptionsMenu();
         } else {

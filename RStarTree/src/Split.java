@@ -1022,10 +1022,6 @@ public class Split {
             margin_value+=Math.abs(rootMBR[1][0]-childMBR[1][0]); //left margin
             //block is root so we use rootMBR. (I think this is how margin-values work, not sure though)
         }
-        else
-        {
-            //TODO: Get MBR from parent and calculate margin for splits deeper down in the tree.
-        }
         return margin_value;
     }
 

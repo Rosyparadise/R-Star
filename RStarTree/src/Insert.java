@@ -108,7 +108,7 @@ public class Insert {
 
     // mass datafile insert during datafile build
     public static void datafileMassInsert(ArrayList<Record> records) {
-        int blockSize = FileHandler.getBlockSize();
+        int blockSize = FileHandler.getBlockSizedatafile();
         int dimensions = FileHandler.getDimensions();
         int noOfDatafileBlocks = FileHandler.getNoOfDatafileBlocks();
 //        data to save
@@ -191,7 +191,7 @@ public class Insert {
 
     //if user adds node manually to the R* Tree, also add it to the datafile.
     public static void datafileRecordInsert(Record record) {
-        int blockSize = FileHandler.getBlockSize();
+        int blockSize = FileHandler.getBlockSizedatafile();
         int dimensions = FileHandler.getDimensions();
         int noOfDatafileBlocks = FileHandler.getNoOfDatafileBlocks();
 //        data to save
@@ -257,7 +257,6 @@ public class Insert {
                 file.write(ConversionToBytes.intToBytes(noOfDatafileBlocks));
                 file.close();
             }
-//            System.out.println(noOfDatafileBlocks);
 
             tempByteCounter = byteCounter;
             nodeId = ConversionToBytes.longToBytes(record.getNodeId());

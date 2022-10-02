@@ -30,7 +30,8 @@ public class FileHandler {
     private static final char blockSeparator = '#';
     private static boolean bottomUp = false;
     private static BottomUp btm= null;
-    private static final int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
+    private static int blockSize = 512; //32KB (KB=1024B) // 512 | 32768
+    private static final int blockSizedatafile = 32768;
     private static ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
 
@@ -52,9 +53,9 @@ public class FileHandler {
         try {
             FileHandler.noOfDatafileBlocks++;
             byte[] dimensionArray = ConversionToBytes.intToBytes(dimensions);
-            byte[] blocksizeArray = ConversionToBytes.intToBytes(blockSize);
+            byte[] blocksizeArray = ConversionToBytes.intToBytes(blockSizedatafile);
             byte[] noOfBlocksArray = ConversionToBytes.intToBytes(noOfDatafileBlocks);
-            byte[] blockData = new byte[blockSize];
+            byte[] blockData = new byte[blockSizedatafile];
             int bytecounter = 0;
 
             // Copies dimensionArray in blockData starting from bytecounter(0) then increments by
@@ -178,8 +179,8 @@ public class FileHandler {
             // for each block after the first one copy from the bytes array which contains all the bytes of the datafile
             // into the dataBlock
             for (int i=1; i < noOfDatafileBlocks; i++){
-                byte[] dataBlock = new byte[blockSize];
-                System.arraycopy(bytes, i * blockSize, dataBlock, 0, blockSize);
+                byte[] dataBlock = new byte[blockSizedatafile];
+                System.arraycopy(bytes, i * blockSizedatafile, dataBlock, 0, blockSizedatafile);
 
                 int bytecounter = 0;
                 boolean flag = true;
@@ -283,6 +284,8 @@ public class FileHandler {
         for (Record record : records) {
             Insert.insert(record);
             counter++;
+            if (counter==10000)
+                break;
         }
     }
 
@@ -410,7 +413,7 @@ public class FileHandler {
         return metadata;
     }
 
-    //used for read index file
+    //used by readindexfile
     public static ArrayList<Rectangle> getRectangleEntries(int id) {
         ArrayList<Rectangle> rectangles = new ArrayList<>();
 
@@ -441,10 +444,10 @@ public class FileHandler {
                 System.arraycopy(block, byteCounter + 4 * Double.BYTES, childPointer, 0, Integer.BYTES);
 
                 List<Double> coordinates = List.of(
-                    ByteBuffer.wrap(minLAT).getDouble(),
-                    ByteBuffer.wrap(minLON).getDouble(),
-                    ByteBuffer.wrap(maxLAT).getDouble(),
-                    ByteBuffer.wrap(maxLON).getDouble()
+                        ByteBuffer.wrap(minLAT).getDouble(),
+                        ByteBuffer.wrap(minLON).getDouble(),
+                        ByteBuffer.wrap(maxLAT).getDouble(),
+                        ByteBuffer.wrap(maxLON).getDouble()
                 );
 
                 Rectangle rectangle = new Rectangle(
@@ -505,6 +508,11 @@ public class FileHandler {
     public static int getBlockSize() {
         return blockSize;
     }
+    public static int getBlockSizedatafile() {
+        return blockSizedatafile;
+    }
+    public static void setBlockSize(int newblockSize) {blockSize=newblockSize;}
+
 
     public static int getLeafLevel() {
         return leafLevel;
