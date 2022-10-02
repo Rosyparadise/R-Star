@@ -5,10 +5,7 @@ import org.w3c.dom.NodeList;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
-import java.io.RandomAccessFile;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.util.ArrayList;
@@ -21,6 +18,7 @@ public class FileHandler {
     private static int noOfDatafileBlocks = 0;
     private static int noOfIndexfileBlocks = 0;
     private static int leafLevel = -1;
+    //Change file from here
     private static final String OsmfilePath = "map2.osm";
     private static final String DatafilePath = "datafile.dat";
     private static final String IndexfilePath = "indexfile.dat";
@@ -30,7 +28,8 @@ public class FileHandler {
     private static final char blockSeparator = '#';
     private static boolean bottomUp = false;
     private static BottomUp btm= null;
-    private static int blockSize = 512; //32KB (KB=1024B) // 512 | 32768
+    //Change block size of R* tree nodes from here
+    private static int blockSize = 32768; //32KB (KB=1024B) // 512 | 32768
     private static final int blockSizedatafile = 32768;
     private static ArrayList<Record> records = new ArrayList<>();
     private static Queue<Integer> emptyBlocks = new LinkedList<>();
@@ -279,14 +278,17 @@ public class FileHandler {
     }
 
 
-    private static void insertIndexfileNodes(){
-        int counter = 0;
-        for (Record record : records) {
-            Insert.insert(record);
-            counter++;
-            if (counter==10000)
-                break;
+    private static void insertIndexfileNodes() {
+        try {
+            new PrintWriter(IndexfilePath).close();
+            for (Record record : records) {
+                Insert.insert(record);
+            }
         }
+        catch (FileNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+
     }
 
 

@@ -7,6 +7,8 @@ public class UserInterface {
     private int dimensions = 2;
     private String userInput = "";
     private boolean isBuilt=false;
+    private boolean isReused=false;
+
 
     UserInterface() {
         scanner = new Scanner(System.in);
@@ -155,7 +157,7 @@ public class UserInterface {
     }
 
     private void startMenu() {
-        if (!isBuilt) {
+        if (!isBuilt && !isReused) {
             System.out.println("Options:\n1) Build,\n2) Reuse,\n3) Esc\n" +
                     "to build the tree, reuse the old files or return to the main menu respectively.");
         }
@@ -168,16 +170,21 @@ public class UserInterface {
         do {
             System.out.print("Input: ");
             userInput = scanner.nextLine();
-        } while ((!userInput.equals("1") || (userInput.equals("1") && isBuilt) ) && !userInput.equals("2") && !userInput.equals("3") &&
+        } while ((!userInput.equals("1") || (userInput.equals("1") && isBuilt) ) && (!userInput.equals("2")) && !userInput.equals("3") &&
                 !userInput.equals("Build") && !userInput.equals("Reuse") && !userInput.equals("ESC"));
 
         System.out.println();
         if ((userInput.equals("1") || userInput.equals("Build")) && !isBuilt) {
             buildMenu();
-        } else if (userInput.equals("2") || userInput.equals("Reuse")) {
+        } else if ((userInput.equals("2") || userInput.equals("Reuse")) && !isReused) {
             FileHandler.retrieveOldFileInfo();
+            isReused=true;
             treeOptionsMenu();
-        } else {
+        }
+        else if (userInput.equals("2") || userInput.equals("Reuse")) {
+            treeOptionsMenu();
+        }
+        else {
             menu();
         }
     }

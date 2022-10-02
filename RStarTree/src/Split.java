@@ -1020,7 +1020,7 @@ public class Split {
             margin_value+=Math.abs(rootMBR[0][1]-childMBR[0][1]); //bottom margin
             margin_value+=Math.abs(rootMBR[0][0]-childMBR[0][0]); //left margin
             margin_value+=Math.abs(rootMBR[1][0]-childMBR[1][0]); //left margin
-            //block is root so we use rootMBR. (I think this is how margin-values work, not sure though)
+            //I think this is how margin-values work, not sure though
         }
         return margin_value;
     }
